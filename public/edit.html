@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Edit — Snape Docs</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/editor.css">
+</head>
+<body class="editor">
+<header class="topbar">
+  <div class="brand"><a href="/" class="back">← Documents</a></div>
+  <div class="head-info"><b id="hNumber"></b><span id="hLang" class="pill"></span>
+    <select id="status"></select></div>
+  <div class="head-actions">
+    <span id="saveState" class="muted">Loaded</span>
+    <button id="versionBtn" title="Save a named snapshot">Save version</button>
+    <a id="printLink" target="_blank" class="btn primary">Print / PDF</a>
+  </div>
+</header>
+<div class="split">
+  <form id="form" autocomplete="off"></form>
+  <section class="preview">
+    <div class="preview-bar"><span id="previewState" class="muted">Rendering…</span></div>
+    <div class="preview-host"><iframe id="preview" title="Preview" style="visibility:hidden"></iframe></div>
+  </section>
+</div>
+<script src="/edit.js"></script>
+</body>
+</html>

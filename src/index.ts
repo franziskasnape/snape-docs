@@ -6,11 +6,13 @@ import { offer004, ctx004 } from './fixtures/offer-004';
 
 import { documents } from './routes/documents';
 import { clients } from './routes/clients';
+import { images } from './routes/images';
 import { docTypes } from './core/registry';
 
 const app = new Hono<{ Bindings: Env }>();
 app.route('/api/documents', documents);
 app.route('/api/clients', clients);
+app.route('/api/images', images);
 app.get('/api/doctypes', (c) => c.json(Object.values(docTypes).map(({ id, prefix, labels, statuses }) => ({ id, prefix, labels, statuses }))));
 
 app.get('/api/health', async (c) => {

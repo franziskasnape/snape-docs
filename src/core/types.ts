@@ -28,5 +28,7 @@ export interface DocType<D = unknown> {
   defaultData(lang: Lang, settings: Settings, today: string): D;
   /** Default Objekt lines for a new document */
   defaultArtwork(lang: Lang): { k: string; v: string }[];
-  render(data: D, ctx: RenderContext): string;
+  render(data: D, ctx: RenderContext, opts?: { embedded?: boolean }): string;
+  /** Generated default text of the computed cost paragraph, if the type has one (editor 'edit manually') */
+  costText?(data: D, lang: Lang): string;
 }

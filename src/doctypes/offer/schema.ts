@@ -11,6 +11,6 @@ export interface OfferData {
   meta: { date: string; validUntil: string; title?: string; eyebrow?: string };
   overview?: ImageRef & { note?: string };
   blocks: OfferBlock[];
-  cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; overrideHtml?: string };
+  cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string };
   rate: number;
 }

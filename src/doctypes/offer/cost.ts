@@ -24,7 +24,7 @@ export function costParagraph(d: OfferData, lang: Lang): string {
   }
   out += fill(T.effort, { hours: fmtHours(main.min, main.max), rate: String(r) });
   out += fill(T.cost, { costWord: d.cost.materials ? T.costWordLabour : T.costWordPlain, chf: fmtChfRange(main.min * r, main.max * r) });
-  if (hasOpt) out += fill(T.optional, { hours: fmtHours(opt.min, opt.max), chf: fmtChfRange(opt.min * r, opt.max * r) });
+  if (hasOpt) out += fill(T.optional, { detail: d.cost.optionalDetail ? ` (${d.cost.optionalDetail})` : '', hours: fmtHours(opt.min, opt.max), chf: fmtChfRange(opt.min * r, opt.max * r) });
   if (d.cost.materials) out += T.materials;
   out += T.closing;
   return out;

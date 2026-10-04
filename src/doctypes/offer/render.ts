@@ -9,7 +9,7 @@ import { costParagraph } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
 
-export type OfferRenderOptions = Pick<FrameOptions, 'cssHref' | 'inlineCss' | 'sealSrc' | 'paged' | 'pagedSrc'>;
+export type OfferRenderOptions = Pick<FrameOptions, 'cssHref' | 'inlineCss' | 'sealSrc' | 'paged' | 'pagedSrc' | 'embedded'>;
 
 export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderOptions = {}): string {
   const L = offerLabels[ctx.lang], C = common[ctx.lang];
@@ -74,5 +74,6 @@ export const offerType: DocType<OfferData> = {
   defaultArtwork: (lang) => (lang === 'de'
     ? ['Künstler/in', 'Titel', 'Technik / Material', 'Masse (H × B × T)']
     : ['Artist', 'Title', 'Technique / Material', 'Dimensions (H × W × D)']).map((k) => ({ k, v: '' })),
-  render: (d, ctx) => renderOffer(d, ctx),
+  render: (d, ctx, opts) => renderOffer(d, ctx, opts),
+  costText: (d, lang) => costParagraph({ ...d, cost: { ...d.cost, overrideHtml: undefined } }, lang),
 };

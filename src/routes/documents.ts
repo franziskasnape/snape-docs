@@ -94,5 +94,35 @@ documents.post('/render', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(b.type ?? 'offer');
   const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `/img/${id}`);
-  return c.html(dt.render(b.data, { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }));
+  return c.html(dt.render(b.data, { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }, { embedded: true }));
+});
+
+// Default (computed) cost text for the "edit manually" box
+documents.post('/cost-text', async (c) => {
+  const b = await c.req.json<any>();
+  const dt = getDocType(b.type ?? 'offer');
+  return c.json({ html: dt.costText?.(b.data, b.lang) ?? '' });
+});
+
+// Version snapshots (the user's "Save version" button; also useful before big edits)
+documents.post('/:id/versions', async (c) => {
+  const id = Number(c.req.param('id'));
+  const doc = await getDocument(c.env, id);
+  if (!doc) return c.json({ error: 'not found' }, 404);
+  const { note } = await c.req.json<{ note?: string }>().catch(() => ({ note: undefined }));
+  await c.env.DB.prepare('INSERT INTO document_versions (document_id, data, note) VALUES (?,?,?)').bind(id, doc.data, note || null).run();
+  return c.json({ ok: true }, 201);
+});
+
+documents.get('/:id/versions', async (c) => {
+  const { results } = await c.env.DB.prepare('SELECT id, note, created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC').bind(Number(c.req.param('id'))).all();
+  return c.json(results);
+});
+
+documents.post('/:id/versions/:vid/restore', async (c) => {
+  const id = Number(c.req.param('id'));
+  const v = await c.env.DB.prepare('SELECT data FROM document_versions WHERE id = ? AND document_id = ?').bind(Number(c.req.param('vid')), id).first<{ data: string }>();
+  if (!v) return c.json({ error: 'not found' }, 404);
+  await c.env.DB.prepare("UPDATE documents SET data = ?, updated_at = datetime('now') WHERE id = ?").bind(v.data, id).run();
+  return c.json({ ok: true });
 });
