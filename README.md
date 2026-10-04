@@ -13,16 +13,21 @@ It runs locally now and is built on Cloudflare Workers + D1 + R2, so it can be d
 Cloudflare later without a rewrite.
 
 ## Status
-Done:
-- Workers + Hono + D1 (SQLite) + R2 skeleton, generic schema (`migrations/0001_init.sql`)
-- House CSS from the existing offers, Paged.js A4 pagination with running header/footer
-- Offer document type: info blocks, prose, notes, measures tables with computed hour totals,
-  cost paragraph template (DE/EN) with per-offer override, signatures
-- Import of the hand-built offers ANG-2026-002/003/004 into the database (`scripts/import-offers.mjs`)
-- Print view `GET /documents/:id/print` (use the browser's Save as PDF)
+Working:
+- Local app on Cloudflare Workers + Hono + D1 (SQLite) + R2; generic schema for all document types
+- **Landing page** (`/`): list, search, filter, new offer (DE/EN, client), duplicate, delete
+- **Editor** (`/edit.html?id=…`): form + live Paged.js preview, autosave, status, version snapshots,
+  photo upload (resized to max 1600 px JPEG in the browser; originals stay in Google Drive)
+- **Offer document type**: object/client info, text sections, notes, treatment tables with computed
+  hour totals, optional treatments, calculated cost paragraph (DE/EN) with toggles, signatures
+- **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, insert from the editor
+- **Settings** (`/settings.html`): hourly rate, offer validity, default language
+- **Export**: `Print / PDF` (browser Save as PDF, correct filename) and `Download HTML` (single file)
+- **Backup**: `npm run backup` (database dump + images, outside the repo)
+- Existing offers ANG-2026-002/003/004 imported
 
-Next: documents API + landing page (open/duplicate/delete sessions), editor with live preview
-and autosave, snippet library, standalone HTML export, versions, backup script.
+Ideas / next: version restore UI, orphaned-image cleanup, one-click PDF via Cloudflare Browser Rendering,
+invoice (with Swiss QR bill) and treatment-report document types, deploy to Cloudflare (+ Access for login).
 
 ## Run
 ```
@@ -30,12 +35,19 @@ npm install
 npm run db:migrate          # creates the local SQLite database
 npm run dev                 # http://localhost:8787
 ```
-Seed the three existing offers (needs the original HTML files; client data is not in git):
+Starter snippet library (German + English drafts, marked "needs review"), with the app running:
+```
+npm run seed:snippets
+```
+Import existing hand-built offers (needs the original HTML files; client data is not in git):
 ```
 node scripts/import-offers.mjs <offer.html>...
 node scripts/load-seed.mjs
 ```
-Then open `http://localhost:8787/documents/1/print`.
+Back up (database + images) to `~/git/projects/snape-docs-backups/<timestamp>`:
+```
+npm run backup
+```
 
 ## Layout
 ```
@@ -43,7 +55,8 @@ src/core/            shared: types, formatting, i18n, page frame, reusable rende
 src/doctypes/offer/  the offer document type (schema, render, cost text, labels)
 public/              house.css, fonts, seal, Paged.js (served as static assets)
 migrations/          D1 schema
-scripts/             asset extraction, offer import, seed loading
+scripts/             asset extraction, offer import, snippet seed, backup
+src/routes/          documents, clients, images, snippets, settings API
 ```
 Client data lives in `.wrangler/` and `seed/` (both git-ignored). Back them up separately.
 

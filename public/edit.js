@@ -42,7 +42,7 @@ function rowHtml(bp, r, i, n) {
     <div class="hours">${input(`${p}.hoursMin`, 'Hours (min)', { type: 'number', step: 0.5 })}${input(`${p}.hoursMax`, 'Hours (max, optional)', { type: 'number', step: 0.5 })}</div>
     <div class="thumbs">${(r.images ?? []).map((im, k) => thumb(`${p}.images.${k}`, im, `${p}.images`, k)).join('')}
       <label class="drop">+ Photo<input type="file" accept="image/*" multiple hidden data-upload="row" data-arr="${p}.images"></label></div>
-    <button type="button" class="mini" data-act="snip-save" data-path="${p}" hidden>Save as snippet</button></div>`;
+    ${btn('snip-save', `data-path="${p}"`, 'Save to library')}</div>`;
 }
 
 function blockHtml(b, i, n) {
@@ -55,7 +55,7 @@ function blockHtml(b, i, n) {
     body = `<label class="field">Label<select data-path="${p}.label">${Object.entries(NOTE_LABELS).map(([k, v]) => `<option value="${k}" ${b.label === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` + area(`${p}.html`, 'Text', 4);
   } else if (b.type === 'measures') {
     body = `<label class="field">Kind<select data-path="${p}.kind"><option value="main" ${b.kind === 'main' ? 'selected' : ''}>Proposed (numbered, counted in the cost)</option><option value="optional" ${b.kind === 'optional' ? 'selected' : ''}>Optional (added separately)</option></select></label>`
-      + b.rows.map((r, k) => rowHtml(p, r, k, b.rows.length)).join('') + btn('add-row', `data-path="${p}"`, '+ Row');
+      + b.rows.map((r, k) => rowHtml(p, r, k, b.rows.length)).join('') + `<div class="addbar">${btn('add-row', `data-path="${p}"`, '+ Row')}${btn('lib-row', `data-path="${p}"`, '+ From library')}</div>`;
   } else if (b.type === 'pagebreak') {
     body = '<p class="hint">Content after this block starts on a new page.</p>';
   }
@@ -91,7 +91,7 @@ function formHtml() {
 
   <fieldset><legend>Content</legend>
     ${d.blocks.map((b, i) => blockHtml(b, i, d.blocks.length)).join('')}
-    <div class="addbar">${btn('add-block', 'data-type="prose"', '+ Text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}</div>
+    <div class="addbar">${btn('add-block', 'data-type="prose"', '+ Text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
   </fieldset>
 
   <fieldset><legend>Cost summary</legend>
@@ -111,6 +111,7 @@ function renderForm() {
   $('#hNumber').textContent = doc.number;
   $('#hLang').textContent = doc.lang.toUpperCase();
   $('#printLink').href = `/documents/${doc.id}/print`;
+  $('#htmlLink').href = `/documents/${doc.id}/standalone.html`;
 }
 
 // ---- change tracking ----
@@ -225,6 +226,9 @@ $('#form').addEventListener('click', (e) => {
     doc.data.blocks.push(blk);
   }
   else if (act === 'del-overview') { delete doc.data.overview; }
+  else if (act === 'lib-row') { return openLibrary('measure', (v) => { get(`${path}.rows`).push({ title: v.title, desc: v.desc ?? '', hoursMin: v.hoursMin ?? 1, ...(v.hoursMax != null ? { hoursMax: v.hoursMax } : {}) }); dirty({ structural: true }); }); }
+  else if (act === 'lib-artist') { return openLibrary('artist', (v) => { doc.data.blocks.unshift({ type: 'prose', heading: doc.lang === 'de' ? 'Zum Künstler und Werk' : 'About the Artist and Work', paragraphs: [v.text] }); dirty({ structural: true }); }); }
+  else if (act === 'snip-save') { return saveRowToLibrary(get(path)); }
   dirty({ structural: true });
 });
 
@@ -248,6 +252,37 @@ async function uploadImage(file, maxEdge = 1600, quality = 0.82) {
   const r = await fetch(`/api/images?documentId=${id}&w=${w}&h=${h}`, { method: 'POST', headers: { 'content-type': 'image/jpeg' }, body: blob });
   if (!r.ok) throw new Error(await r.text());
   return (await r.json()).id;
+}
+
+// ---- snippet library ----
+const slug = (t) => t.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+const libDlg = $('#libDlg');
+async function openLibrary(kind, onPick) {
+  const all = await api(`/api/snippets?kind=${kind}`);
+  const lang = doc.lang, label = (v) => (kind === 'measure' ? v.title : v.name);
+  const draw = () => {
+    const q = $('#libSearch').value.toLowerCase();
+    $('#libList').innerHTML = all.filter((s) => JSON.stringify([s.key, s.de, s.en]).toLowerCase().includes(q)).map((s) => {
+      const v = s[lang] ?? {}, ok = !!label(v);
+      const hrs = kind === 'measure' && ok ? ` · ${v.hoursMin}${v.hoursMax != null ? '–' + v.hoursMax : ''} h` : '';
+      return `<button type="button" class="lib-item" data-id="${s.id}" ${ok ? '' : 'disabled'}>${esc(ok ? label(v) : s.key)}${hrs}${s.needsReview ? '<span class="rv">needs review</span>' : ''}
+        <small>${ok ? esc((kind === 'measure' ? v.desc : v.text) ?? '').slice(0, 140) : `no ${lang.toUpperCase()} version yet — add it on the Snippets page`}</small></button>`;
+    }).join('') || '<p class="muted">No snippets found.</p>';
+  };
+  $('#libTitle').textContent = kind === 'measure' ? `Insert treatment row (${lang.toUpperCase()})` : `Insert artist bio (${lang.toUpperCase()})`;
+  $('#libSearch').value = ''; draw();
+  $('#libSearch').oninput = draw;
+  $('#libList').onclick = (e) => { const b = e.target.closest('.lib-item'); if (!b) return; libDlg.close(); onPick(all.find((s) => s.id === Number(b.dataset.id))[lang]); };
+  libDlg.showModal();
+}
+$('#libClose').addEventListener('click', () => libDlg.close());
+
+async function saveRowToLibrary(row) {
+  if (!row.title) return alert('Give the row a title first.');
+  const key = slug(row.title);
+  const v = { title: row.title, desc: row.desc, hoursMin: row.hoursMin, ...(row.hoursMax != null ? { hoursMax: row.hoursMax } : {}) };
+  await api('/api/snippets', 'POST', { kind: 'measure', key, [doc.lang]: v, needsReview: true });
+  setState(`Saved "${row.title}" to the library (${doc.lang.toUpperCase()}) — add the other language on the Snippets page`);
 }
 
 // ---- boot ----

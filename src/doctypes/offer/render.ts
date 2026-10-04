@@ -9,7 +9,7 @@ import { costParagraph } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
 
-export type OfferRenderOptions = Pick<FrameOptions, 'cssHref' | 'inlineCss' | 'sealSrc' | 'paged' | 'pagedSrc' | 'embedded'>;
+export type OfferRenderOptions = Pick<FrameOptions, 'cssHref' | 'inlineCss' | 'sealSrc' | 'paged' | 'pagedSrc' | 'embedded' | 'inlinePaged'>;
 
 export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderOptions = {}): string {
   const L = offerLabels[ctx.lang], C = common[ctx.lang];

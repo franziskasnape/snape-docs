@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snippets — Snape Docs</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/editor.css">
+<style>
+  .wrap.wide { max-width:1300px; }
+  .tabs { display:flex; gap:6px; }
+  .tabs button.on { background:var(--ink); color:#fff; border-color:var(--ink); }
+  .snip { background:var(--card); border:1px solid var(--line); border-radius:8px; padding:12px 14px; margin-bottom:12px; }
+  .snip-head { display:flex; gap:10px; align-items:center; margin-bottom:8px; }
+  .snip-head .key { font-weight:700; margin-right:auto; }
+  .cols { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  .cols h4 { margin:0 0 6px; font-size:11px; letter-spacing:1.2px; text-transform:uppercase; color:var(--muted); }
+  .review { font-size:12px; display:flex; gap:6px; align-items:center; color:var(--muted); }
+  .empty-lang { color:var(--danger); font-size:12px; }
+  @media (max-width:800px) { .cols { grid-template-columns:1fr; } }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-word">SNAPE</span><span class="brand-sub">Art Conservation</span></div>
+  <nav><a href="/">Documents</a><a href="/snippets.html" class="active">Snippets</a><a href="/settings.html">Settings</a></nav>
+</header>
+<main class="wrap wide">
+  <div class="toolbar">
+    <h1>Snippets</h1>
+    <div class="tabs"><button data-kind="measure" class="on">Treatment rows</button><button data-kind="artist">Artist bios</button></div>
+    <input id="search" type="search" placeholder="Search…">
+    <label class="review"><input type="checkbox" id="onlyReview"> needs review</label>
+    <button id="newBtn" class="primary">New snippet</button>
+  </div>
+  <p class="muted">Snippets are copied into a document when you insert them, so editing one here never changes past documents.</p>
+  <div id="list"></div>
+</main>
+<script>
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const api = async (url, method = 'GET', body) => { const r = await fetch(url, { method, headers: body ? { 'content-type': 'application/json' } : {}, body: body && JSON.stringify(body) }); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+let kind = 'measure', items = [];
+const FIELDS = {
+  measure: [['title', 'Title', 'input'], ['desc', 'Description', 'area'], ['hoursMin', 'Hours (min)', 'num'], ['hoursMax', 'Hours (max, optional)', 'num']],
+  artist: [['name', 'Artist name', 'input'], ['text', 'Bio text', 'area']],
+};
+const slug = (t) => t.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+function side(it, lang) {
+  const v = it[lang] ?? {};
+  const f = FIELDS[kind].map(([k, label, type]) => {
+    const val = esc(v[k] ?? '');
+    if (type === 'area') return `<label class="field">${label}<textarea data-lang="${lang}" data-k="${k}" rows="4">${val}</textarea></label>`;
+    if (type === 'num') return `<label class="field" style="width:48%;display:inline-block">${label}<input data-lang="${lang}" data-k="${k}" data-num="1" type="number" step="0.5" value="${val}"></label>`;
+    return `<label class="field">${label}<input data-lang="${lang}" data-k="${k}" value="${val}"></label>`;
+  }).join('');
+  return `<div><h4>${lang === 'de' ? 'Deutsch' : 'English'} ${Object.keys(v).length ? '' : '<span class="empty-lang">— not translated yet</span>'}</h4>${f}</div>`;
+}
+
+function render() {
+  const q = $('#search').value.toLowerCase(), onlyR = $('#onlyReview').checked;
+  const rows = items.filter((s) => s.kind === kind && (!onlyR || s.needsReview) && JSON.stringify([s.key, s.de, s.en]).toLowerCase().includes(q));
+  $('#list').innerHTML = rows.map((s) => `<div class="snip" data-id="${s.id}">
+    <div class="snip-head"><span class="key">${esc(s.key)}</span>
+      <label class="review"><input type="checkbox" data-review ${s.needsReview ? 'checked' : ''}> needs review</label>
+      <button class="link danger" data-del>Delete</button></div>
+    <div class="cols">${side(s, 'de')}${side(s, 'en')}</div></div>`).join('') || '<p class="muted">Nothing here yet.</p>';
+}
+
+async function load() { items = await api('/api/snippets'); render(); }
+
+const timers = {};
+function queueSave(id) {
+  clearTimeout(timers[id]);
+  timers[id] = setTimeout(() => { const s = items.find((x) => x.id === id); api(`/api/snippets/${id}`, 'PUT', { de: s.de, en: s.en, needsReview: s.needsReview }); }, 600);
+}
+$('#list').addEventListener('input', (e) => {
+  const card = e.target.closest('.snip'); if (!card) return;
+  const s = items.find((x) => x.id === Number(card.dataset.id));
+  if (e.target.dataset.k) {
+    const v = (s[e.target.dataset.lang] ??= {}), k = e.target.dataset.k;
+    if (e.target.dataset.num) { if (e.target.value === '') delete v[k]; else v[k] = Number(e.target.value); } else v[k] = e.target.value;
+    // keep hours in sync across languages unless the other side already differs
+    queueSave(s.id);
+  }
+  if (e.target.matches('[data-review]')) { s.needsReview = e.target.checked; queueSave(s.id); }
+});
+$('#list').addEventListener('click', async (e) => {
+  if (!e.target.matches('[data-del]')) return;
+  const id = Number(e.target.closest('.snip').dataset.id), s = items.find((x) => x.id === id);
+  if (confirm(`Delete snippet "${s.key}"?`)) { await api(`/api/snippets/${id}`, 'DELETE'); load(); }
+});
+document.querySelectorAll('.tabs button').forEach((b) => b.addEventListener('click', () => { kind = b.dataset.kind; document.querySelectorAll('.tabs button').forEach((x) => x.classList.toggle('on', x === b)); render(); }));
+$('#search').addEventListener('input', render); $('#onlyReview').addEventListener('change', render);
+$('#newBtn').addEventListener('click', async () => {
+  const name = prompt(kind === 'measure' ? 'Short name for the new treatment row (English is fine):' : 'Artist name:'); if (!name) return;
+  const empty = kind === 'measure' ? { title: name, desc: '', hoursMin: 1 } : { name, text: '' };
+  await api('/api/snippets', 'POST', { kind, key: slug(name), de: { ...empty }, en: kind === 'measure' ? { ...empty, title: '', desc: '' } : { name, text: '' }, needsReview: true });
+  load();
+});
+load();
+</script>
+</body>
+</html>

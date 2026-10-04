@@ -15,6 +15,7 @@
   <div class="head-actions">
     <span id="saveState" class="muted">Loaded</span>
     <button id="versionBtn" title="Save a named snapshot">Save version</button>
+    <a id="htmlLink" class="btn" title="Single self-contained file">Download HTML</a>
     <a id="printLink" target="_blank" class="btn primary">Print / PDF</a>
   </div>
 </header>
@@ -25,6 +26,12 @@
     <div class="preview-host"><iframe id="preview" title="Preview" style="visibility:hidden"></iframe></div>
   </section>
 </div>
+<dialog id="libDlg">
+  <h2 id="libTitle">Library</h2>
+  <input id="libSearch" type="search" placeholder="Search…" style="width:100%;margin-bottom:10px">
+  <div id="libList"></div>
+  <div class="actions"><button type="button" id="libClose" class="ghost">Close</button></div>
+</dialog>
 <script src="/edit.js"></script>
 </body>
 </html>

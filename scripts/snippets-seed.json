@@ -1,0 +1,262 @@
+[
+ {
+  "kind": "measure",
+  "key": "cleaning-of-the-reverse",
+  "needsReview": true,
+  "de": {
+   "title": "Reinigung Rückseite",
+   "desc": "Trockenreinigung der Rückseite, Leinwandumschläge und des Spannsystems zur Entfernung lose aufliegender Verschmutzungen und Staubablagerungen.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Cleaning of the reverse",
+   "desc": "Dry cleaning of the reverse, the canvas turnovers and the stretcher system to remove loose surface dirt and dust deposits.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "edges-and-corners",
+  "needsReview": true,
+  "de": {
+   "title": "Kanten und Ecken",
+   "desc": "Vorsichtige Reduzierung von Verschmutzungen und Fremdmaterial an den oberen und unteren Kanten sowie den Ecken.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Edges and corners",
+   "desc": "Careful reduction of dirt and foreign material on the upper and lower edges and the corners.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "documentation",
+  "needsReview": true,
+  "de": {
+   "title": "Dokumentation",
+   "desc": "Fotografische Dokumentation des Zustands sowie der ausgeführten Massnahmen.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Documentation",
+   "desc": "Photographic documentation of the condition and of the treatment carried out.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "unframing-examination-and-documentation",
+  "needsReview": true,
+  "de": {
+   "title": "Ausrahmen, Untersuchung und Dokumentation",
+   "desc": "Vorsichtiges Ausrahmen der Grafik. Untersuchung von Vorder- und Rückseite sowie der bislang verdeckten Bereiche. Überprüfung der bestehenden Montierung und des Passepartouts. Fotografische Dokumentation des Vor- und Endzustandes.",
+   "hoursMin": 1,
+   "hoursMax": 2
+  },
+  "en": {
+   "title": "Unframing, examination and documentation",
+   "desc": "Careful unframing of the print. Examination of front and back and of the previously concealed areas. Inspection of the existing mounting and mat. Photographic documentation of the initial and final condition.",
+   "hoursMin": 1,
+   "hoursMax": 2
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "surface-cleaning-of-the-print",
+  "needsReview": true,
+  "de": {
+   "title": "Oberflächenreinigung der Grafik",
+   "desc": "Vorsichtige trockene Oberflächenreinigung des Papierträgers unter Berücksichtigung der Empfindlichkeit der Druckfarben. Entfernung loser Oberflächenverschmutzungen und Fremdpartikel.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Surface cleaning of the print",
+   "desc": "Careful dry surface cleaning of the paper support, taking the sensitivity of the printing inks into account. Removal of loose surface dirt and foreign particles.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "decorative-frame-local-stabilisation",
+  "needsReview": true,
+  "de": {
+   "title": "Zierrahmen – lokale Sicherung",
+   "desc": "Überprüfung der Fassung und Vergoldung auf gelockerte bzw. gefährdete Bereiche. Lokale Festigung instabiler Fassungs- und Vergoldungspartien, soweit erforderlich.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Decorative frame – local stabilisation",
+   "desc": "Examination of the paint and gilding layers for loose or endangered areas. Local consolidation of unstable paint and gilding areas where necessary.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "examination-documentation",
+  "needsReview": true,
+  "de": {
+   "title": "Untersuchung / Dokumentation",
+   "desc": "Untersuchung des Gemäldes im Original und fotografische Dokumentation des Zustandes. Überprüfung von Bildträger, Malschicht, Spannrahmen und Rahmung.",
+   "hoursMin": 1.5,
+   "hoursMax": 2
+  },
+  "en": {
+   "title": "Examination / documentation",
+   "desc": "Examination of the painting in the original and photographic documentation of its condition. Inspection of support, paint layer, stretcher and framing.",
+   "hoursMin": 1.5,
+   "hoursMax": 2
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "assessment-of-paint-layer-stability",
+  "needsReview": true,
+  "de": {
+   "title": "Überprüfung der Malschichtstabilität",
+   "desc": "Kontrolle der Malschicht, insbesondere der Randbereiche, auf Lockerungen und Haftungsverluste. Ggf. lokale Festigung gefährdeter Bereiche.",
+   "hoursMin": 3,
+   "hoursMax": 4
+  },
+  "en": {
+   "title": "Assessment of paint layer stability",
+   "desc": "Inspection of the paint layer, in particular the edge areas, for lifting and loss of adhesion. Local consolidation of endangered areas where necessary.",
+   "hoursMin": 3,
+   "hoursMax": 4
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "cleaning-tests-examination-of-a-possible-coating",
+  "needsReview": true,
+  "de": {
+   "title": "Reinigungsproben / Untersuchung eines möglichen Überzugs",
+   "desc": "Durchführung von Reinigungsproben zur Beurteilung des Verschmutzungsgrades und der Empfindlichkeit der Gemäldeoberfläche und Malschicht. Überprüfung, ob ein Firnis bzw. später aufgebrachter Überzug vorhanden ist; bei entsprechendem Befund Durchführung kleinflächiger Lösemitteltests zur Beurteilung von Zustand, Löslichkeit und Einfluss auf die optische Erscheinung.",
+   "hoursMin": 1,
+   "hoursMax": 1.5
+  },
+  "en": {
+   "title": "Cleaning tests / examination of a possible coating",
+   "desc": "Cleaning tests to assess the degree of soiling and the sensitivity of the painting surface and paint layer. Examination of whether a varnish or later-applied coating is present; if so, small-area solvent tests to assess its condition, solubility and effect on the visual appearance.",
+   "hoursMin": 1,
+   "hoursMax": 1.5
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "surface-cleaning",
+  "needsReview": true,
+  "de": {
+   "title": "Oberflächenreinigung",
+   "desc": "Schonende Oberflächenreinigung der Malschicht entsprechend den Ergebnissen der Reinigungsproben.",
+   "hoursMin": 3,
+   "hoursMax": 4
+  },
+  "en": {
+   "title": "Surface cleaning",
+   "desc": "Gentle surface cleaning of the paint layer in accordance with the results of the cleaning tests.",
+   "hoursMin": 3,
+   "hoursMax": 4
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "paint-losses",
+  "needsReview": true,
+  "de": {
+   "title": "Malschichtfehlstellen",
+   "desc": "Lokale Bearbeitung der kleineren Fehlstellen und Abriebstellen, insbesondere im Randbereich; falls erforderlich Kittung und zurückhaltende Retusche.",
+   "hoursMin": 2,
+   "hoursMax": 3
+  },
+  "en": {
+   "title": "Paint losses",
+   "desc": "Local treatment of the smaller losses and abrasions, in particular in the edge areas; filling and restrained retouching where required.",
+   "hoursMin": 2,
+   "hoursMax": 3
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "backing-protection-vibration-dampening",
+  "needsReview": true,
+  "de": {
+   "title": "Rückseitenschutz / Schwingschutz",
+   "desc": "Anbringen eines geeigneten Rückseitenschutzes zur Reduzierung mechanischer Belastungen und zum Schutz vor Staub und rückseitigen Einwirkungen.",
+   "hoursMin": 1,
+   "hoursMax": 1.5
+  },
+  "en": {
+   "title": "Backing protection / vibration dampening",
+   "desc": "Fitting a suitable backing protection to reduce mechanical stress and to protect against dust and influences from the reverse.",
+   "hoursMin": 1,
+   "hoursMax": 1.5
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "hanging-system",
+  "needsReview": true,
+  "de": {
+   "title": "Aufhängung",
+   "desc": "Überprüfung der vorhandenen Aufhängung und ggf. Anpassung bzw. Erneuerung für eine sichere Präsentation.",
+   "hoursMin": 0.5,
+   "hoursMax": 1
+  },
+  "en": {
+   "title": "Hanging system",
+   "desc": "Inspection of the existing hanging system and, where necessary, adjustment or renewal for safe display.",
+   "hoursMin": 0.5,
+   "hoursMax": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "final-documentation",
+  "needsReview": true,
+  "de": {
+   "title": "Abschlussdokumentation",
+   "desc": "Fotografische und schriftliche Dokumentation der ausgeführten Massnahmen.",
+   "hoursMin": 1
+  },
+  "en": {
+   "title": "Final documentation",
+   "desc": "Photographic and written documentation of the treatment carried out.",
+   "hoursMin": 1
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "if-applicable-varnish-reduction-removal",
+  "needsReview": true,
+  "de": {
+   "title": "Ggf. Firnisreduzierung / Firnisabnahme",
+   "desc": "Sofern bei der Untersuchung ein gealterter bzw. optisch störender Überzug festgestellt wird und die durchgeführten Lösemitteltests eine sichere Behandlung ermöglichen: kontrollierte Reduzierung bzw. Abnahme des Überzugs.",
+   "hoursMin": 8,
+   "hoursMax": 15
+  },
+  "en": {
+   "title": "If applicable: varnish reduction / removal",
+   "desc": "Provided the examination reveals an aged or visually disturbing coating and the solvent tests allow safe treatment: controlled reduction or removal of the coating.",
+   "hoursMin": 8,
+   "hoursMax": 15
+  }
+ },
+ {
+  "kind": "measure",
+  "key": "if-applicable-re-varnishing",
+  "needsReview": true,
+  "de": {
+   "title": "Ggf. Neuauftrag eines Firnisses",
+   "desc": "Auftrag eines geeigneten, alterungsbeständigen Firnisses unter Berücksichtigung der Gemäldeoberfläche und des gewünschten Glanzgrades.",
+   "hoursMin": 2,
+   "hoursMax": 3
+  },
+  "en": {
+   "title": "If applicable: re-varnishing",
+   "desc": "Application of a suitable, ageing-resistant varnish, taking the painting surface and the desired gloss level into account.",
+   "hoursMin": 2,
+   "hoursMax": 3
+  }
+ }
+]

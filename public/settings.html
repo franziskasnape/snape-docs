@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Settings — Snape Docs</title>
+<link rel="stylesheet" href="/app.css">
+<link rel="stylesheet" href="/editor.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-word">SNAPE</span><span class="brand-sub">Art Conservation</span></div>
+  <nav><a href="/">Documents</a><a href="/snippets.html">Snippets</a><a href="/settings.html" class="active">Settings</a></nav>
+</header>
+<main class="wrap" style="max-width:560px">
+  <div class="toolbar"><h1>Settings</h1><span id="state" class="muted"></span></div>
+  <fieldset>
+    <legend>Defaults for new documents</legend>
+    <label class="field">Hourly rate (CHF)<input id="rate" type="number" min="1" step="1"></label>
+    <label class="field">Offer validity (days after the offer date)<input id="days" type="number" min="1" step="1"></label>
+    <label class="field">Default language<select id="lang"><option value="de">Deutsch</option><option value="en">English</option></select></label>
+    <p class="hint">Existing documents keep their own rate and dates; these only apply to new documents.</p>
+  </fieldset>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const api = async (m, b) => (await fetch('/api/settings', { method: m, headers: { 'content-type': 'application/json' }, body: b && JSON.stringify(b) })).json();
+(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; })();
+let t;
+document.querySelectorAll('input,select').forEach((el) => el.addEventListener('input', () => {
+  $('#state').textContent = 'Saving…'; clearTimeout(t);
+  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value }); $('#state').textContent = 'Saved'; }, 600);
+}));
+</script>
+</body>
+</html>

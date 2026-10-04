@@ -43,3 +43,10 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 .preview-host { position:relative; }
 #preview { position:absolute; top:0; left:0; }
 .hint.warn { color:var(--danger); }
+
+#libDlg { width:min(640px, 94vw); max-height:80vh; }
+#libList { max-height:52vh; overflow:auto; }
+.lib-item { display:block; width:100%; text-align:left; margin-bottom:6px; padding:8px 10px; }
+.lib-item small { display:block; color:var(--muted); }
+.lib-item[disabled] { opacity:.5; cursor:not-allowed; }
+.lib-item .rv { color:var(--danger); font-size:11px; margin-left:6px; }
