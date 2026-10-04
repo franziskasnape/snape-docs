@@ -297,22 +297,79 @@ async function openHistory() {
   $('#histDetail').innerHTML = '<p class="muted">Select a version to see what restoring it would change.</p>';
   histDlg.showModal();
 }
+let histSel = null, histTab = 'changes';
+
+/** Render a document state into a scaled, Paged.js-paginated iframe inside `container` (same pipeline as the live preview). */
+async function mountPreview(container, payload) {
+  const html = await (await fetch('/api/documents/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })).text();
+  const f = document.createElement('iframe');
+  f.title = 'Preview';
+  f.style.cssText = 'position:absolute;top:0;left:0;width:850px;height:3000px;border:0;visibility:hidden';
+  container.replaceChildren(f);
+  await new Promise((res) => {
+    const h = (e) => { if (e.source === f.contentWindow && e.data?.pagedDone) { removeEventListener('message', h); res(); } };
+    addEventListener('message', h);
+    f.srcdoc = html;
+  });
+  for (let i = 0; i < 60 && f.isConnected && !f.contentDocument.querySelector('.pagedjs_page'); i++) await new Promise((r) => setTimeout(r, 50));
+  if (!f.isConnected) return null;               // the user switched tab/version while this was rendering
+  f.style.zoom = Math.min(1, container.clientWidth / 850);
+  f.style.height = (f.contentDocument.documentElement.scrollHeight + 20) + 'px';
+  f.style.visibility = 'visible';
+  return f;
+}
+
+const statePayload = (st, withClient) => ({ type: doc.type, number: doc.number, lang: doc.lang, clientId: st.clientId ?? doc.clientId,
+  ...(withClient ? { client: doc.client ?? {} } : {}), artwork: st.artwork ?? doc.artwork, data: st.data });
+
+async function startSideBySide() {
+  const A = $('#sbsA'), B = $('#sbsB'), snap = histSel.v.snapshot;
+  A.textContent = B.textContent = 'Rendering…';
+  const [fa, fb] = await Promise.all([mountPreview(A, statePayload(doc, true)), mountPreview(B, statePayload(snap, false))]);
+  if (!fa || !fb) return;
+  const pages = (f) => f.contentDocument.querySelectorAll('.pagedjs_page').length;
+  $('#sbsLabelA').textContent = `Now — ${pages(fa)} page${pages(fa) === 1 ? '' : 's'}`;
+  $('#sbsLabelB').textContent = `${when(histSel.v.createdAt)} — ${pages(fb)} page${pages(fb) === 1 ? '' : 's'}`;
+  let lock = false;                               // linked scrolling (proportional, since page counts can differ)
+  const link = (from, to) => from.addEventListener('scroll', () => {
+    if (lock) return; lock = true;
+    to.scrollTop = (from.scrollTop / Math.max(1, from.scrollHeight - from.clientHeight)) * (to.scrollHeight - to.clientHeight);
+    requestAnimationFrame(() => { lock = false; });
+  });
+  link(A, B); link(B, A);
+}
+
+function renderHistDetail() {
+  const { v, vid } = histSel, rows = diffAgainstCurrent(v.snapshot), title = `${esc(when(v.createdAt))} ${v.note ? '— ' + esc(v.note) : ''}`;
+  const tabs = [['changes', `Changes (${rows.length})`], ['side', 'Side by side']].map(([k, l]) => `<button type="button" data-tab="${k}" class="${histTab === k ? 'on' : ''}">${l}</button>`).join('');
+  const body = histTab === 'side'
+    ? `<div class="sbs"><div class="sbs-col"><div class="sbs-label" id="sbsLabelA">Now</div><div class="sbs-pane" id="sbsA"></div></div>
+        <div class="sbs-col"><div class="sbs-label" id="sbsLabelB">${esc(when(v.createdAt))}</div><div class="sbs-pane" id="sbsB"></div></div></div>`
+    : rows.length ? `<p class="hint">Restoring this version would make ${rows.length} change${rows.length > 1 ? 's' : ''}. <del>Red</del> is what you have now and would disappear; <ins>green</ins> is what would appear.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
+      : '<p class="hint">Identical to the current state.</p>';
+  $('#histDetail').innerHTML = `<div class="hist-head"><h3>${title}</h3><div class="tabs2">${tabs}</div></div><div class="hist-body">${body}</div>
+    <div class="hist-foot"><button type="button" class="primary" id="restoreBtn" ${rows.length ? '' : 'disabled'}>Restore this version</button>
+    <span class="hint"> Your current state is saved as a version first, so you can undo a restore.</span></div>`;
+  histDlg.classList.toggle('wide', histTab === 'side');
+  $('#restoreBtn').onclick = async () => {
+    if (!confirm('Restore this version? The current state will be saved to the history first.')) return;
+    await api(`/api/documents/${id}/versions/${vid}/restore`, 'POST');
+    location.reload();
+  };
+  if (histTab === 'side') startSideBySide();
+}
+
 $('#histList').addEventListener('click', async (e) => {
   const b = e.target.closest('.hist-item'); if (!b) return;
   document.querySelectorAll('.hist-item').forEach((x) => x.classList.toggle('on', x === b));
-  const v = await api(`/api/documents/${id}/versions/${b.dataset.vid}`);
-  const rows = diffAgainstCurrent(v.snapshot);
-  $('#histDetail').innerHTML = `<h3 style="margin:0 0 4px">${esc(when(v.createdAt))} ${v.note ? '— ' + esc(v.note) : ''}</h3>
-    ${rows.length ? `<p class="hint">Restoring this version would make ${rows.length} change${rows.length > 1 ? 's' : ''}. <del>Red</del> is what you have now and would disappear; <ins>green</ins> is what would appear.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
-      : '<p class="hint">Identical to the current state.</p>'}
-    <button type="button" class="primary" id="restoreBtn" ${rows.length ? '' : 'disabled'}>Restore this version</button>
-    <span class="hint"> Your current state is saved as a version first, so you can undo a restore.</span>`;
-  $('#restoreBtn').onclick = async () => {
-    if (!confirm('Restore this version? The current state will be saved to the history first.')) return;
-    await api(`/api/documents/${id}/versions/${b.dataset.vid}/restore`, 'POST');
-    location.reload();
-  };
+  histSel = { vid: b.dataset.vid, v: await api(`/api/documents/${id}/versions/${b.dataset.vid}`) };
+  renderHistDetail();
 });
+$('#histDetail').addEventListener('click', (e) => {
+  const t = e.target.closest('[data-tab]'); if (!t || !histSel) return;
+  histTab = t.dataset.tab; renderHistDetail();
+});
+histDlg.addEventListener('close', () => { histDlg.classList.remove('wide'); histSel = null; histTab = 'changes'; });
 $('#historyBtn').addEventListener('click', openHistory);
 $('#histClose').addEventListener('click', () => histDlg.close());
 

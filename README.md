@@ -17,7 +17,8 @@ Working:
 - Local app on Cloudflare Workers + Hono + D1 (SQLite) + R2; generic schema for all document types
 - **Landing page** (`/`): list, search, filter, new offer (DE/EN, client), duplicate, delete
 - **Editor** (`/edit.html?id=…`): form + live Paged.js preview, autosave, status, version history
-  (named snapshots, automatic checkpoints, status changes; History panel shows what a restore would change),
+  (named snapshots, automatic checkpoints, status changes; the History panel lists what a restore would
+  change and can show the current document and an old version side by side),
   photo upload (resized to max 1600 px JPEG in the browser; originals stay in Google Drive)
 - **Offer document type**: object/client info, text sections, notes, treatment tables with computed
   hour totals, optional treatments, calculated cost paragraph (DE/EN) with toggles, signatures
