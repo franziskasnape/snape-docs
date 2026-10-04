@@ -11,10 +11,6 @@ export interface FrameOptions {
   cssHref?: string;
   inlineCss?: string;
   sealSrc?: string;
-  embedded?: boolean;            // live-preview iframe: tell the parent when pagination is done
-  paged?: boolean;               // load Paged.js (print/preview) — false for raw HTML
-  pagedSrc?: string;
-  inlinePaged?: string;          // standalone export: polyfill source inlined instead of a <script src>
 }
 
 export function frame(o: FrameOptions): string {
@@ -33,13 +29,10 @@ export function frame(o: FrameOptions): string {
   return `<!DOCTYPE html>
 <html lang="${o.lang}"><head><meta charset="UTF-8">
 <title>${esc(o.title)}</title>
-<meta name="hz:slide-selector" content=".pagedjs_page"><meta name="hz:canvas-width" content="794"><meta name="hz:canvas-height" content="1123">
 ${o.inlineCss ? `<style>${o.inlineCss}</style>` : `<link rel="stylesheet" href="${esc(o.cssHref ?? '/house.css')}">`}
 <style>:root{--page-label:"${t.page}"}</style>
 </head><body>
 ${header}${footer}
 <main>${o.body}</main>
-${o.embedded ? `<script>window.ResizeObserver=function(){this.observe=this.unobserve=this.disconnect=function(){}};window.PagedConfig={auto:true,after:function(){parent.postMessage({pagedDone:true},'*')}}</script>` : ''}
-${o.paged === false ? '' : o.inlinePaged ? `<script>${o.inlinePaged}</script>` : `<script src="${esc(o.pagedSrc ?? '/paged.polyfill.js')}"></script>`}
 </body></html>`;
 }

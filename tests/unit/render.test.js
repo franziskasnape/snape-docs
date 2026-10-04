@@ -51,15 +51,12 @@ describe('offer rendering', () => {
     expect(render(offerWithRows(2, 'optional'))).toMatch(/<tr><td>–<\/td>/);       // optional rows are not numbered
   });
 
-  it('writes the table so the total can never be separated from the last row, and the heading never from the first', () => {
-    const shape = (n) => { const h = render(offerWithRows(n)); return { keeps: count(h, /class="keep"/g), tables: count(h, /<table /g) }; };
-    expect(shape(0)).toEqual({ keeps: 1, tables: 1 });
-    expect(shape(1)).toEqual({ keeps: 1, tables: 1 });
-    expect(shape(2)).toEqual({ keeps: 2, tables: 2 });
-    expect(shape(6)).toEqual({ keeps: 2, tables: 3 });
+  it('writes one real table whose header can repeat, and keeps the last row together with the total line', () => {
+    const shape = (n) => { const h = render(offerWithRows(n)); return { tables: count(h, /<table /g), theads: count(h, /<thead>/g), keepLast: count(h, /<tbody class="keep-last">/g), totalRows: count(h, /<tr class="totals">/g) }; };
+    for (const n of [0, 1, 2, 6]) expect(shape(n)).toEqual({ tables: 1, theads: 1, keepLast: 1, totalRows: 1 });
     const html = render(offerWithRows(4));
-    const lastKeep = html.slice(html.lastIndexOf('<div class="keep">'));
-    expect(lastKeep).toContain('Row 4'); expect(lastKeep).toContain('class="totals"');
+    const keepLast = html.slice(html.indexOf('<tbody class="keep-last">'), html.indexOf('</tbody>', html.indexOf('<tbody class="keep-last">')));
+    expect(keepLast).toContain('Row 4'); expect(keepLast).toContain('class="totals"'); expect(keepLast).not.toContain('Row 3');
   });
 
   it('escapes user text so a title cannot inject markup', () => {

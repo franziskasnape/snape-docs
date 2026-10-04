@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { buildContext, getDocument, parseData, type Env } from './core/db';
+import { hostPage } from './core/render/host';
 
 import { documents } from './routes/documents';
 import { clients } from './routes/clients';
@@ -29,17 +30,20 @@ app.get('/img/:id', async (c) => {
   return new Response(obj.body, { headers: { 'Content-Type': row.mime, 'Cache-Control': 'private, max-age=3600' } });
 });
 
-// Print view: Paged.js A4 pages. Browser "Save as PDF" uses <title> as the filename.
+// Print view: the document laid out into A4 pages (Vivliostyle) with a Print / Save-as-PDF button.
+// The browser uses the document's <title> as the default PDF file name.
 app.get('/documents/:id/print', async (c) => {
   const doc = await getDocument(c.env, Number(c.req.param('id')));
   if (!doc) return c.notFound();
   const dt = getDocType(doc.type);
   if (!dt) return c.text('unsupported document type', 400);
-  const ctx = await buildContext(c.env, doc, (id) => `/img/${id}`);
-  return c.html(dt.render(parseData(doc), ctx));
+  const origin = new URL(c.req.url).origin;
+  const ctx = await buildContext(c.env, doc, (id) => `${origin}/img/${id}`);       // absolute: the document is loaded from a blob: URL
+  const documentHtml = dt.render(parseData(doc), ctx, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
+  return c.html(hostPage({ documentHtml, mode: 'view', lang: doc.lang }));
 });
 
-// Self-contained single-file export (fonts, images, seal and Paged.js inlined) — like the original hand-built offers.
+// Self-contained single-file export (fonts, images, seal and the layout engine inlined) — like the original hand-built offers.
 app.get('/documents/:id/standalone.html', async (c) => {
   const doc = await getDocument(c.env, Number(c.req.param('id')));
   if (!doc) return c.notFound();
@@ -51,15 +55,16 @@ app.get('/documents/:id/standalone.html', async (c) => {
   let css = new TextDecoder().decode(await asset('/house.css'));
   for (const f of new Set(css.match(/\/fonts\/[\w-]+\.otf/g) ?? [])) css = css.split(f).join(`data:font/otf;base64,${b64(await asset(f))}`);
   const seal = `data:image/png;base64,${b64(await asset('/seal.png'))}`;
-  const paged = new TextDecoder().decode(await asset('/paged.polyfill.js')).replace(/<\/script/gi, '<\\/script');
+  const engine = new TextDecoder().decode(await asset('/vivliostyle.js'));
 
   const ctx = await buildContext(c.env, doc, (id) => `/img/${id}`);
-  let html = dt.render(parseData(doc), ctx, { inlineCss: css, sealSrc: seal, inlinePaged: paged });
-  for (const id of new Set([...html.matchAll(/\/img\/(\d+)/g)].map((m) => Number(m[1])))) {
+  let documentHtml = dt.render(parseData(doc), ctx, { inlineCss: css, sealSrc: seal });
+  for (const id of new Set([...documentHtml.matchAll(/\/img\/(\d+)/g)].map((m) => Number(m[1])))) {
     const row = await c.env.DB.prepare('SELECT r2_key, mime FROM images WHERE id = ?').bind(id).first<{ r2_key: string; mime: string }>();
     const obj = row && await c.env.IMAGES.get(row.r2_key);
-    if (obj) html = html.split(`/img/${id}"`).join(`data:${row.mime};base64,${b64(await obj.arrayBuffer())}"`);
+    if (obj) documentHtml = documentHtml.split(`/img/${id}"`).join(`data:${row.mime};base64,${b64(await obj.arrayBuffer())}"`);
   }
+  const html = hostPage({ documentHtml, mode: 'view', lang: doc.lang, inlineScript: engine, importHints: true });
   const name = `Snape-Conservation_${doc.number}_${doc.lang === 'de' ? 'Angebot' : 'Offer'}.html`;
   return c.body(html, 200, { 'Content-Type': 'text/html; charset=utf-8', 'Content-Disposition': `attachment; filename="${name}"` });
 });

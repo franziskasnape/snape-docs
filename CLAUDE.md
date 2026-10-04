@@ -17,10 +17,10 @@ npm run backup         # snapshot (db dump + photos) to the folder in .backup-di
 npm run restore -- latest     # restore a snapshot (stop the dev server first; current data is kept aside)
 ```
 
-Fonts and `public/paged.polyfill.js` are not in git (`npm run fonts`, `npm install`).
+Fonts and `public/vivliostyle.js` (the page-layout engine, AGPL-3.0) are not in git (`npm run fonts`, `npm install`).
 
 Verify UI changes in a browser; the live preview and History side-by-side only finish rendering while the
-browser tab is visible (Paged.js pauses in hidden tabs).
+browser tab is visible (the layout engine pauses in hidden tabs).
 
 ## Rules that matter
 
@@ -41,6 +41,7 @@ browser tab is visible (Paged.js pauses in hidden tabs).
   commit exports, photos, or screenshots of real client documents.
 - New document types go in `src/doctypes/<type>/`, registered in `src/core/registry.ts`; reuse `src/core/render/blocks`.
 - Don't move an `<iframe>` in the DOM (it reloads); the preview swaps frames by visibility.
+- The document HTML (`frame.ts`) must stay engine-neutral and script-free; page layout lives in `core/render/host.ts` (Vivliostyle). Keep its AGPL notice. The treatment table must remain ONE `<table>` with a `<thead>` (that is what repeats the header on continuation pages).
 - The deployed app has no login of its own — it must sit behind Cloudflare Access (see `docs/DEPLOY.md`).
 
 ## Testing notes

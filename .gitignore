@@ -18,8 +18,8 @@ public/fonts/*.otf
 public/fonts/*.ttf
 public/fonts/*.woff
 public/fonts/*.woff2
-# Third-party script copied from node_modules by `npm install` (scripts/postinstall.mjs)
-public/paged.polyfill.js
+# Third-party page-layout engine built from node_modules by `npm install` (scripts/postinstall.mjs)
+public/vivliostyle.js
 
 # Anything that could be client data or artwork: images, documents, exports, databases.
 # (The only image in the repository is the studio seal, allowed below.)

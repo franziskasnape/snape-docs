@@ -44,7 +44,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Settings** (`/settings.html`): hourly rate, offer validity, default language
 - **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
 - **Backup**: `npm run backup`, optional hourly automatic backups, `npm run restore`
-- **Tests**: `npm test` (60 unit tests) and `npm run test:layout` (print layout in headless Chrome)
+- **Tests**: `npm test` (67 unit tests) and `npm run test:layout` (print layout and PDF export in headless Chrome)
 
 ## Project layout
 
@@ -52,12 +52,19 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 src/core/            shared: types, formatting, i18n, migrations, page frame, reusable render blocks
 src/doctypes/offer/  the offer document type (schema, render, cost text, labels, migrations)
 src/routes/          API: documents, clients, images, snippets, settings
-public/              the app UI (landing, editor, snippets, settings), house.css, fonts, seal, Paged.js, diff.js
+public/              the app UI (landing, editor, snippets, settings), house.css, fonts, seal, diff.js (the Vivliostyle layout engine is built into public/ by npm install)
 migrations/          D1 database schema (applied in order)
 scripts/             import offers, seed snippets, backup/restore, fonts, git guard, copy images, extract assets
 tests/               unit tests and print-layout tests (invented data only)
 docs/                the guides above
 ```
+
+## Third-party software
+
+- **[Vivliostyle](https://vivliostyle.org)** (page layout and printing) — GNU AGPL-3.0. Built into `public/vivliostyle.js` by `npm install`;
+  the standalone HTML export includes it with a notice.
+- **Synonym** and **Amulya** fonts — Fontshare EULA; not in this repository, install with `npm run fonts`.
+- Hono, Wrangler, Vitest, Puppeteer, pdf.js and other npm packages under their own licences (see `package-lock.json`).
 
 ## Privacy
 

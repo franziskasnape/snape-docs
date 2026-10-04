@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { buildContext, getDocument, getSettings, nextNumber, parseData, type Env } from '../core/db';
 import { needsUpgrade, upgrade } from '../core/migrate';
+import { hostPage } from '../core/render/host';
 import { getDocType, docTypes } from '../core/registry';
 import type { Lang } from '../core/types';
 
@@ -116,12 +117,14 @@ documents.delete('/:id', async (c) => {
   return c.json({ ok: true });
 });
 
-// Live preview: render an unsaved state (same shape as GET /:id)
+// Live preview: lay out an unsaved state (same shape as GET /:id) and return a host page for an <iframe>
 documents.post('/render', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(b.type ?? 'offer');
-  const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `/img/${id}`, JSON.stringify(b.data));
-  return c.html(dt.render(upgrade(dt, b.data), { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }, { embedded: true }));
+  const origin = new URL(c.req.url).origin;
+  const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `${origin}/img/${id}`, JSON.stringify(b.data));
+  const documentHtml = dt.render(upgrade(dt, b.data), { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
+  return c.html(hostPage({ documentHtml, mode: 'preview', lang: b.lang }));
 });
 
 // Default (computed) cost text for the "edit manually" box

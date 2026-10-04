@@ -18,7 +18,7 @@ Then, in the project folder:
 
 ```bash
 cd ~/git/projects/snape-docs
-npm install              # downloads the dependencies (and copies the page-layout script into public/)
+npm install              # downloads the dependencies (and builds the page-layout engine, public/vivliostyle.js)
 npm run fonts -- "<folder with the downloaded Synonym and Amulya fonts>"
 npm run db:migrate       # creates the local SQLite database and its tables
 ```
@@ -174,7 +174,7 @@ node scripts/load-seed.mjs                              # loads seed/ into the l
 | `command not found: node` | Install Node (section 1) and open a new terminal |
 | `npm install` fails with a peer-dependency error | Use the versions pinned in `package.json`; do not add `--force` |
 | The page does not load | Is `npm run dev` still running? Check <http://localhost:8787/api/health> |
-| The live preview says *Rendering…* for a long time | The browser tab is probably in the background. Paged.js (the page layout engine) pauses in hidden tabs; bring the tab to the front |
+| The live preview says *Rendering…* for a long time | The browser tab is probably in the background. Vivliostyle (the page layout engine) pauses in hidden tabs; bring the tab to the front |
 | The preview or PDF looks different from last time | Reload the page. Pagination is calculated in the browser every time |
 | A HEIC photo (iPhone) will not upload | Chrome cannot read HEIC. Export it as JPEG first (Safari can read HEIC) |
 | `Save failed` shows next to the editor header | The server stopped or the document was deleted; reload the page |
