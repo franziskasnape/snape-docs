@@ -30,6 +30,8 @@ one HTML string  ──►  /documents/:id/print          (browser + Paged.js)
                  └─►  /api/documents/render          (editor live preview and History side-by-side)
 ```
 
+The cost summary and the signatures are wrapped in `<section class="final-page">`, which always starts a new page, so every offer ends with one page holding both. (A manual page break as the very last block is ignored so it cannot create a blank page.)
+
 Styling for the printed documents is `public/house.css` (the studio's design, lifted from the original hand-built
 offers). The app's own UI uses `public/app.css` and `public/editor.css`.
 

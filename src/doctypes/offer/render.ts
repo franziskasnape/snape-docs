@@ -24,7 +24,9 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   const info = `<div class="info-grid"><div class="info-stack">${kv(C.object, ctx.artwork)}${kv(C.client, clientLines)}</div>`
     + overviewFigure(ctx, d.overview, d.overview?.note, d.overview?.layout) + `</div>`;
 
-  const blocks = d.blocks.map((b) => {
+  let content = d.blocks;
+  while (content.length && content[content.length - 1].type === 'pagebreak') content = content.slice(0, -1);   // the final page starts on a new page anyway
+  const blocks = content.map((b) => {
     switch (b.type) {
       case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs);
       case 'note': return note(L.notes[b.label], b.html);
@@ -48,8 +50,10 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   const body = `<div class="doc-title-row"><div class="doc-eyebrow">${esc(d.meta.eyebrow ?? L.eyebrow)}</div>
     <div class="doc-title">${esc(d.meta.title ?? L.title)}</div></div><div class="hr"></div>
     ${info}${blocks}
-    <div class="section-heading">${esc(L.costHeading)}</div><div class="section-body">${costParagraph(d, ctx.lang)}</div>
-    ${sign}`;
+    <section class="final-page">
+      <div class="section-heading">${esc(L.costHeading)}</div><div class="section-body">${costParagraph(d, ctx.lang)}</div>
+      ${sign}
+    </section>`;
 
   return frame({
     lang: ctx.lang,

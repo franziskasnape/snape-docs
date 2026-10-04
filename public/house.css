@@ -130,6 +130,8 @@ table.doc-table td.num, table.doc-table th.num { text-align:right; white-space:n
 
 /* ---- signatures: kept together at the end ---- */
 .sign-group { break-inside:avoid; margin-top:6mm; }
+/* Cost summary + signatures always form their own final page */
+.final-page { break-before:page; }
 .sign-block { display:flex; gap:14mm; margin-top:9mm; }
 .sign-box { flex:1; }
 .sign-rule { border-bottom:0.6pt solid #1a1613; height:5mm; }
