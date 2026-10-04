@@ -111,7 +111,7 @@ table.doc-table th {
 }
 table.doc-table td { padding:1.2mm 2mm 1.2mm 0; border-bottom:0.4pt solid #e3ddd2; vertical-align:top; }
 table.doc-table tr { break-inside:avoid; }
-table.doc-table td.num, table.doc-table th.num { text-align:right; }
+table.doc-table td.num, table.doc-table th.num { text-align:right; white-space:nowrap; }
 .table-title { display:block; font-weight:600; font-size:9.3pt; }
 .table-desc { display:block; font-size:8.4pt; color:#6f5f49; line-height:1.32; margin-top:0.3mm; }
 

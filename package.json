@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261001.1",
+    "node-html-parser": "^9.0.4",
     "pagedjs": "^0.4.3",
     "typescript": "^5.6.0",
     "wrangler": "^4.0.0"

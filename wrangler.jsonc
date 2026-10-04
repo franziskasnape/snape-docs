@@ -2,7 +2,7 @@
   "name": "snape-docs",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-01",
-  "assets": { "directory": "./public" },
+  "assets": { "directory": "./public", "binding": "ASSETS" },
   "d1_databases": [
     { "binding": "DB", "database_name": "snape-docs", "database_id": "local-only-replace-on-deploy", "migrations_dir": "migrations" }
   ],
