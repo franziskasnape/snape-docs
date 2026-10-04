@@ -9,7 +9,7 @@ For running the app see [RUNNING.md](RUNNING.md); for hosting see [DEPLOY.md](DE
 | Cloudflare Workers + [Hono](https://hono.dev) | the server (`src/index.ts`, `src/routes/`) | runs locally with `wrangler dev` and deploys unchanged |
 | D1 | SQLite database (`migrations/`) | a real SQLite file locally, hosted SQLite on Cloudflare |
 | R2 | photo storage | a local folder in development, a bucket on Cloudflare |
-| [Paged.js](https://pagedjs.org) | splits the HTML into A4 pages in the browser, repeats header/footer, numbers pages | `public/paged.polyfill.js` (copied from the npm package) |
+| [Vivliostyle](https://vivliostyle.org) | the page-layout engine: splits the HTML into A4 pages in the browser, repeats the running header/footer and table headers, numbers pages. Licence **AGPL-3.0** | `public/vivliostyle.js`, built from `@vivliostyle/core` by `npm install` (`scripts/postinstall.mjs`) |
 | Plain HTML + JS | the app UI in `public/` | no build step; edit and reload |
 
 TypeScript is checked with `npm run typecheck`. Tests are described in [Tests](#tests) below.
@@ -21,13 +21,24 @@ documents row (JSON `data`) + client + artwork lines
         │  parseData(): upgrade old data to the current schema (core/migrate.ts)
         ▼
 DocType.render(data, ctx)  ── doctypes/offer/render.ts
-        │  composes core/render/frame.ts (letterhead, meta box, footer, Paged.js)
+        │  composes core/render/frame.ts (letterhead, meta box, footer as running elements)
         │  with core/render/blocks/* (prose, notes, measures table, figures, key/value lines)
         ▼
-one HTML string  ──►  /documents/:id/print          (browser + Paged.js)
-                 ├─►  /documents/:id/standalone.html (fonts, photos, script inlined)
-                 └─►  /api/documents/render          (editor live preview and History side-by-side)
+the DOCUMENT: one plain HTML page + CSS (public/house.css), no scripts, no engine
+        │  core/render/host.ts embeds it in a "host" page that lays it out with Vivliostyle
+        ▼
+host page  ──►  /documents/:id/print           own tab: sheets on a grey desk + Print / Save as PDF button
+           ├─►  /api/documents/render          <iframe> in the editor and in History side-by-side (reports "done" to the parent)
+           └─►  /documents/:id/standalone.html one file: fonts, photos and the engine inlined
 ```
+
+The host hands the document to Vivliostyle as a Blob URL (so all URLs inside it are absolute), and shows every page
+stacked at true size (Vivliostyle itself shows one page at a time, scaled; `host.ts` has the screen-only CSS that undoes
+that). Printing is Vivliostyle's own: it fills `<style id="vivliostyle-page-rules">` with the `@page` rules, so the
+browser's *Save as PDF* produces exactly the pages on screen.
+
+**Licence:** Vivliostyle is AGPL-3.0. This repository is public, so its source is available; the standalone HTML export
+contains the engine and carries a notice. PDFs are not affected. Keep the notice in `host.ts` when changing it.
 
 The cost summary and the signatures are wrapped in `<section class="final-page">`, which always starts a new page, so every offer ends with one page holding both. (A manual page break as the very last block is ignored so it cannot create a blank page.)
 
@@ -40,12 +51,13 @@ Two suites, both using [Vitest](https://vitest.dev). All test data is **invented
 
 | Command | What it covers | Speed |
 | --- | --- | --- |
-| `npm test` | 60 unit tests, no browser: number/date/CHF formatting, the cost paragraph (hours, CHF, optional treatments, DE/EN), schema migrations, the History diff, offer rendering (final page, localized headings, table structure, photo layout, HTML escaping), backup retention, image sizes, the publish guard (against throwaway git repos) and public-repo hygiene | about 10 s |
-| `npm run test:layout` | **Print layout** with the real page-layout engine (Paged.js) in headless Chrome: 40 realistic, 16 demanding and 30 text-heavy invented offers, plus special cases (almost empty, one row, trailing/mid page breaks, English). Needs Google Chrome (or `CHROME_PATH`) and `npm install` (copies Paged.js into `public/`). Studio fonts are optional but make the results match real documents (`npm run fonts`) | about 2 minutes |
+| `npm test` | 67 unit tests, no browser: number/date/CHF formatting, the cost paragraph (hours, CHF, optional treatments, DE/EN), schema migrations, the History diff, offer rendering (final page, localized headings, table structure, photo layout, HTML escaping), the layout host page, backup retention, image sizes, the publish guard (against throwaway git repos) and public-repo hygiene | about 10 s |
+| `npm run test:layout` | **Print layout** with the real layout host (Vivliostyle) in headless Chrome, plus an end-to-end **PDF** check (A4 pages, page numbers, repeated table header, final page): 40 realistic, 16 demanding and 30 text-heavy invented offers, plus special cases (almost empty, one row, trailing/mid page breaks, English). Needs Google Chrome (or `CHROME_PATH`) and `npm install` (builds `public/vivliostyle.js`). Studio fonts are optional but make the results match real documents (`npm run fonts`) | about 2 minutes |
 
 The layout suite checks every printed page for these defects: blank page, content running past the page, a row photo
 hanging out of its row, a heading alone at the bottom of a page, the *Total* line alone at the top of a page, a table
-row split across two pages, table columns that differ between pieces of the same table, a cut signature block, and the
+continuing on a new page without its column header row, a table row split across two pages, table columns that differ between
+tables, a cut signature block, and the
 **final-page rule** (cost summary and both signature rows together on the last page, nowhere else). It also fails when
 pages in the middle are mostly empty for realistic content. Each variant uses different text lengths so that page
 breaks fall in many different places; a bug that only appears when a heading lands at the very bottom is found by
@@ -59,14 +71,13 @@ When you fix a layout bug, first add a variant or a check that fails because of 
 await h.render(makeOffer({ seed: 11, rows: 15 }), 'de', { screenshotDir: '/tmp/pages' });
 ```
 
-Known limitations, deliberately not asserted: Paged.js cannot repeat a table's header row on continuation pages
-(`it.todo` in `tests/layout/layout.test.js`), and a single treatment row taller than about a third of a page leaves a white
+Known limitations, deliberately not asserted: a single treatment row taller than about a third of a page leaves a white
 gap, because rows are never split across pages. A few lines of content can end up alone on the page before the final page.
+Column positions and overflow are compared with a few pixels' tolerance (the engine lays out at a high internal resolution).
 
-How the table is built to satisfy these rules: the treatment table is written as up to three pieces that look like one
-table, `[heading + header + first row]`, `[middle rows]`, `[last row + total line]`, because Paged.js honours
-`break-inside: avoid` on a wrapper but cannot "keep with next" across table rows. Column widths are set on the cells
-(not only a `<colgroup>`), because Paged.js drops the `colgroup` when it splits a table.
+How the table is built to satisfy these rules: the treatment table is **one real `<table>`** with a `<thead>`, so the engine
+repeats the column header on every continuation page. The last data row and the total line share a `<tbody class="keep-last">`
+with `break-inside: avoid`, so the total is never alone at the top of a page. Column widths come from the `<colgroup>`.
 
 ## Code map
 

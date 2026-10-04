@@ -1,15 +1,16 @@
 /**
- * Layout regression tests. They render invented offers with the real page-layout engine (Paged.js) in headless Chrome and
+ * Layout regression tests. They render invented offers with the real page-layout host (Vivliostyle) in headless Chrome and
  * check for typical print-layout defects. Run with `npm run test:layout` (needs Google Chrome or CHROME_PATH, and
- * `npm install` once so public/paged.polyfill.js exists). Fonts are optional but make results match real documents.
+ * `npm install` once so public/vivliostyle.js exists). Fonts are optional but make results match real documents.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { findChrome, fontsInstalled, pagedInstalled, startHarness } from './harness.js';
+import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { engineInstalled, findChrome, fontsInstalled, startHarness } from './harness.js';
 import { findDefects, lowFillPages } from './defects.js';
 import { makeOffer, rng, words } from './fixtures.js';
 
-const ready = !!findChrome() && pagedInstalled();
-if (!ready) console.warn('Layout tests skipped: need Google Chrome (or CHROME_PATH) and public/paged.polyfill.js (run npm install).');
+const ready = !!findChrome() && engineInstalled();
+if (!ready) console.warn('Layout tests skipped: need Google Chrome (or CHROME_PATH) and public/vivliostyle.js (run npm install).');
 if (ready && !fontsInstalled()) console.warn('Note: studio fonts are not installed (npm run fonts); layout is checked with fallback fonts.');
 
 const d = ready ? describe : describe.skip;
@@ -74,6 +75,26 @@ d('text-heavy offers (many headed sections, long paragraphs)', () => {
   });
 });
 
+d('PDF export (the print view as the browser saves it)', () => {
+  it('gives A4 pages with page numbers, the repeated table header, and the cost summary + signatures on the last page', async () => {
+    const buf = await h.pdf(makeOffer({ seed: 11, rows: 15, optionalRows: 3, photoRate: 0.5 }));
+    const pdf = await getDocument({ data: new Uint8Array(buf), useSystemFonts: true, verbosity: 0 }).promise;
+    const texts = [];
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i), vp = page.getViewport({ scale: 1 });
+      expect([Math.round((vp.width / 72) * 25.4), Math.round((vp.height / 72) * 25.4)], `page ${i} size`).toEqual([210, 297]);
+      texts.push((await page.getTextContent()).items.map((x) => x.str).join(' ').replace(/\s+/g, ' '));
+    }
+    expect(pdf.numPages).toBeGreaterThanOrEqual(4);
+    texts.forEach((t, i) => expect(t, `page ${i + 1} footer`).toContain(`Seite ${i + 1} / ${pdf.numPages}`));
+    const withHeader = texts.filter((t) => /B\s?E\s?S\s?C\s?H\s?R\s?E\s?I\s?B\s?U\s?N\s?G/i.test(t) || /beschreibung/i.test(t)).length;
+    expect(withHeader, 'pages showing the table header row').toBeGreaterThanOrEqual(3);   // first table page + two continuation pages
+    const last = texts[texts.length - 1];
+    expect(last).toContain('Kostenaufstellung'); expect(last.toLowerCase()).toContain('ort, datum');
+    texts.slice(0, -1).forEach((t, i) => expect(t.toLowerCase(), `page ${i + 1}`).not.toContain('ort, datum'));
+  });
+});
+
 d('special cases', () => {
   it('an almost empty offer is two pages: content, then cost summary + signatures', async () => {
     const pages = await h.render(makeOffer({ seed: 1, rows: 0, optionalRows: 0, prose: [0, 0, 0] }));
@@ -103,5 +124,4 @@ d('special cases', () => {
     expect(r.flatMap((x) => findDefects(x.pages).map((m) => `${x.name}: ${m}`))).toEqual([]);
   });
 
-  it.todo('repeats the column header (Beschreibung / Aufwand) on continuation pages of a table — Paged.js has no built-in support');
 });

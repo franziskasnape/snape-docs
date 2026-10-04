@@ -16,8 +16,8 @@ describe('public repository hygiene', () => {
     expect(bad).toEqual([]);
     expect(tracked().filter((f) => /\.sql$/.test(f) && !/^migrations\/[^/]+\.sql$/.test(f))).toEqual([]);
   });
-  it('tracks no private working folders, environment files or the vendored third-party script', () => {
-    expect(tracked().filter((f) => /^(seed|\.wrangler|node_modules)\//.test(f) || /(^|\/)\.(env|dev\.vars|backup-dir)/.test(f) || f === 'public/paged.polyfill.js')).toEqual([]);
+  it('tracks no private working folders, environment files or the third-party layout engine', () => {
+    expect(tracked().filter((f) => /^(seed|\.wrangler|node_modules)\//.test(f) || /(^|\/)\.(env|dev\.vars|backup-dir)/.test(f) || f === 'public/vivliostyle.js')).toEqual([]);
   });
   it.skipIf(!terms.length)('mentions none of the private terms in .git/sensitive-terms.txt (client, artist and piece names)', () => {
     const hits = tracked().filter((f) => f !== 'package-lock.json').flatMap((f) => {
@@ -28,7 +28,7 @@ describe('public repository hygiene', () => {
   });
   it('ignores what must never be committed', () => {
     const ignore = readFileSync(resolve(ROOT, '.gitignore'), 'utf8');
-    for (const rule of ['.wrangler/', 'seed/', '.backup-dir', 'public/fonts/*.otf', 'public/paged.polyfill.js', '*.jpg', '*.pdf', '*.sql', '!migrations/*.sql', '!public/seal.png']) expect(ignore).toContain(rule);
+    for (const rule of ['.wrangler/', 'seed/', '.backup-dir', 'public/fonts/*.otf', 'public/vivliostyle.js', '*.jpg', '*.pdf', '*.sql', '!migrations/*.sql', '!public/seal.png']) expect(ignore).toContain(rule);
   });
   it('ships a generic starter snippet library with both languages and no piece-specific wording', () => {
     const seed = JSON.parse(readFileSync(resolve(ROOT, 'scripts/snippets-seed.json'), 'utf8'));

@@ -1,4 +1,4 @@
-// Document editor: form on the left, live Paged.js preview on the right.
+// Document editor: form on the left, live page-layout preview (Vivliostyle) on the right.
 const $ = (s, r = document) => r.querySelector(s);
 const id = Number(new URLSearchParams(location.search).get('id'));
 let doc = null, clients = [], clientDirty = false;
@@ -147,8 +147,8 @@ async function save() {
 }
 
 // ---- preview ----
-// Each render goes into a fresh hidden iframe that replaces the visible one once Paged.js has finished
-// (no flicker, and Paged.js always starts from a clean browsing context).
+// Each render goes into a fresh hidden iframe that replaces the visible one once the layout engine has finished
+// (no flicker, and the engine always starts from a clean browsing context).
 const host = $('.preview-host');
 let frame = $('#preview'), nextFrame = null, previewSeq = 0;
 const zoomFor = () => Math.min(1, host.clientWidth / 850);
@@ -171,8 +171,8 @@ async function preview() {
 addEventListener('message', async (e) => {
   if (!e.data?.pagedDone || e.source !== nextFrame?.contentWindow) return;
   const nf = nextFrame; nextFrame = null;
-  // Paged.js signals "done" just before the pages are attached: wait until they exist
-  for (let i = 0; i < 60 && !nf.contentDocument.querySelector('.pagedjs_page'); i++) await new Promise((r) => setTimeout(r, 50));
+  // the host posts "done" when layout is complete; make sure the pages are in the DOM before measuring
+  for (let i = 0; i < 60 && !nf.contentDocument.querySelector('[data-vivliostyle-page-container]'); i++) await new Promise((r) => setTimeout(r, 50));
   const scroll = host.scrollTop;
   // Never move an iframe in the DOM (that reloads it): size it in place, reveal it, drop the old one.
   nf.style.height = (nf.contentDocument.documentElement.scrollHeight + 20) + 'px';
@@ -180,7 +180,7 @@ addEventListener('message', async (e) => {
   nf.style.visibility = 'visible';
   frame.remove(); frame = nf; frame.id = 'preview';
   host.scrollTop = scroll;
-  $('#previewState').textContent = `${nf.contentDocument.querySelectorAll('.pagedjs_page').length} pages`;
+  $('#previewState').textContent = `${nf.contentDocument.querySelectorAll('[data-vivliostyle-page-container]').length} pages`;
 });
 addEventListener('resize', () => { frame.style.zoom = zoomFor(); });
 
@@ -299,7 +299,7 @@ async function openHistory() {
 }
 let histSel = null, histTab = 'changes';
 
-/** Render a document state into a scaled, Paged.js-paginated iframe inside `container` (same pipeline as the live preview). */
+/** Render a document state into a scaled, paginated iframe inside `container` (same pipeline as the live preview). */
 async function mountPreview(container, payload) {
   const html = await (await fetch('/api/documents/render', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) })).text();
   const f = document.createElement('iframe');
@@ -311,7 +311,7 @@ async function mountPreview(container, payload) {
     addEventListener('message', h);
     f.srcdoc = html;
   });
-  for (let i = 0; i < 60 && f.isConnected && !f.contentDocument.querySelector('.pagedjs_page'); i++) await new Promise((r) => setTimeout(r, 50));
+  for (let i = 0; i < 60 && f.isConnected && !f.contentDocument.querySelector('[data-vivliostyle-page-container]'); i++) await new Promise((r) => setTimeout(r, 50));
   if (!f.isConnected) return null;               // the user switched tab/version while this was rendering
   f.style.zoom = Math.min(1, container.clientWidth / 850);
   f.style.height = (f.contentDocument.documentElement.scrollHeight + 20) + 'px';
@@ -327,7 +327,7 @@ async function startSideBySide() {
   A.textContent = B.textContent = 'Rendering…';
   const [fa, fb] = await Promise.all([mountPreview(A, statePayload(doc, true)), mountPreview(B, statePayload(snap, false))]);
   if (!fa || !fb) return;
-  const pages = (f) => f.contentDocument.querySelectorAll('.pagedjs_page').length;
+  const pages = (f) => f.contentDocument.querySelectorAll('[data-vivliostyle-page-container]').length;
   $('#sbsLabelA').textContent = `Now — ${pages(fa)} page${pages(fa) === 1 ? '' : 's'}`;
   $('#sbsLabelB').textContent = `${when(histSel.v.createdAt)} — ${pages(fb)} page${pages(fb) === 1 ? '' : 's'}`;
   let lock = false;                               // linked scrolling (proportional, since page counts can differ)

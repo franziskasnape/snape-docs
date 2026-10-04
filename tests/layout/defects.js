@@ -9,6 +9,7 @@ export function findDefects(pages, { expectFinalPage = true } = {}) {
     if (p.floatOverlap) out.push(`${at}: a row photo hangs out of its row (overlaps the next row)`);
     if (p.headingLast) out.push(`${at}: a heading is the last thing on the page ("${p.lastText.replace(/\s+/g, ' ')}")`);
     if (p.totalsFirst) out.push(`${at}: the "Total" line is alone at the top of the page, separated from its table`);
+    if (p.startsWithTable && !p.hasHeaderRow) out.push(`${at}: the table continues here without its column header row`);
     if (p.signatureCut) out.push(`${at}: the signature block is cut by the page edge`);
     if (expectFinalPage && p !== last && (p.hasCost || p.hasSignatures)) out.push(`${at}: cost summary / signatures appear before the final page`);
   });

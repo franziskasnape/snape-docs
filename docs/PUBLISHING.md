@@ -30,7 +30,7 @@ What is intentionally public: the source code, the schema migrations, the generi
 ```bash
 git clone https://github.com/<your-account>/snape-docs.git
 cd snape-docs
-npm install                                    # also copies the Paged.js page-layout script into public/
+npm install                                    # also builds the Vivliostyle page-layout engine into public/
 npm run fonts -- "/folder/with/the/downloaded/Synonym/and/Amulya/fonts"
 node scripts/install-git-hook.mjs              # installs the publish guard (see below)
 npm run db:migrate && npm run dev

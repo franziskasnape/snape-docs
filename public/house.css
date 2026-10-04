@@ -1,6 +1,6 @@
 /* Snape Art Conservation — house style.
-   Lifted from offers ANG-2026-002/003/004; the fixed .page boxes are replaced by
-   Paged.js pagination with a running header and footer. */
+   Lifted from the studio's original hand-built offers. The page layout engine (Vivliostyle, see core/render/host.ts)
+   paginates this document into A4 pages with a running header and footer. Screen/desk styling lives in the host page. */
 
 @font-face { font-family: "Synonym"; src: url(/fonts/Synonym-400.otf) format("opentype"); font-weight: 400; font-style: normal; }
 @font-face { font-family: "Synonym"; src: url(/fonts/Synonym-600.otf) format("opentype"); font-weight: 600; font-style: normal; }
@@ -10,7 +10,6 @@
 @font-face { font-family: "Amulya";  src: url(/fonts/Amulya-600.otf)  format("opentype"); font-weight: 600; font-style: normal; }
 
 * { margin:0; padding:0; box-sizing:border-box; }
-html { background:#e9e6e1; }
 
 /* ---- page geometry (A4) ---- */
 @page {
@@ -39,20 +38,11 @@ body {
   line-height:1.38;
 }
 
-/* Preview on screen before/without pagination */
-.pagedjs_pages { display:flex; flex-direction:column; align-items:center; gap:8mm; padding:8mm 0; }
-.pagedjs_page { background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.18); }
-@media print {
-  html { background:#fff; }
-  .pagedjs_pages { display:block; padding:0; gap:0; }
-  .pagedjs_page { box-shadow:none; }
-}
-
 @page :first {
   @top-left { content: element(hdr1); width: 176mm; vertical-align: top; padding-top: 12mm; }
 }
 
-/* ---- running header / footer (placed by Paged.js into the margin boxes) ---- */
+/* ---- running header / footer (placed into the page margin boxes by the layout engine; explicit width = full text width) ---- */
 .running-header { position: running(hdr); width:176mm; }
 .running-header-first { position: running(hdr1); width:176mm; }
 .running-footer { position: running(ftr); width:176mm; }
@@ -106,9 +96,7 @@ body {
 
 /* ---- tables ---- */
 table.doc-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-top:2mm; font-size:8.8pt; }
-table.doc-table.cont { margin-top:0; }
-/* Column widths live on the cells (not only a <colgroup>): Paged.js drops the colgroup when it splits a table across pages */
-.keep { break-inside:avoid; }
+/* the last row and the total line are never separated by a page break */
 tbody.keep-last { break-inside:avoid; }
 table.doc-table tr.totals td { border-bottom:0; border-top:0.75pt solid #1a1613; padding-top:2.4mm; font-weight:700; font-size:11pt; white-space:nowrap; }
 table.doc-table tr.totals td.tl { color:#6f5f49; text-align:right; }
