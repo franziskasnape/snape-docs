@@ -35,7 +35,7 @@ export async function startHarness() {
   let n = 0;
 
   /** Render offer data; resolves to an array with one report per printed page. `screenshotDir` also saves page-N.png files. */
-  async function render(data, lang = 'de', { screenshotDir } = {}) {
+  async function render(data, lang = 'de', { screenshotDir, beforeScreenshot } = {}) {
     const html = renderOffer(JSON.parse(JSON.stringify(data)), context(lang), { embedded: true });
     const id = ++n; docs.set(id, html);
     const page = await browser.newPage();
@@ -47,6 +47,7 @@ export async function startHarness() {
       await page.evaluate(() => document.fonts.ready);
       await new Promise((r) => setTimeout(r, 150));
       const report = await page.evaluate(analyze);
+      if (beforeScreenshot) await beforeScreenshot(page, report);      // e.g. draw annotations for a bug report
       if (screenshotDir) {                                     // debugging aid: one PNG per printed page
         mkdirSync(screenshotDir, { recursive: true });
         const els = await page.$$('.pagedjs_page');
