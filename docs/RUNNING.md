@@ -94,10 +94,10 @@ small even if you take many.
 Use a folder inside **Google Drive for desktop**, which uploads it automatically. Set it once:
 
 ```bash
-node scripts/autobackup.mjs install --dest "$HOME/Library/CloudStorage/GoogleDrive-<account>/My Drive/Snape Art Conservation/Backups/snape-docs"
+node scripts/autobackup.mjs set-dest "$HOME/Library/CloudStorage/GoogleDrive-<account>/My Drive/Snape Art Conservation/Backups/snape-docs"
 ```
 
-(or just run a one-off `npm run backup -- --dest "<folder>"`; without `--dest` the default is
+(or just run a one-off `npm run backup -- --dest "<folder>"`; with neither, the default is
 `~/git/projects/snape-docs-backups`, which is on this disk only.) The chosen folder is remembered in the git-ignored
 file `.backup-dir`. Also turn on **Time Machine** with an external drive if you can: it is a second, independent copy.
 

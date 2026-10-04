@@ -3,6 +3,7 @@
  * Schedule automatic backups on macOS (a launchd "LaunchAgent": runs while you are logged in).
  *
  *   node scripts/autobackup.mjs install [--dest <folder>]   switch on: backs up now, then every hour
+ *   node scripts/autobackup.mjs set-dest <folder>           only remember where backups go (no schedule)
  *   node scripts/autobackup.mjs status                      is it on? last runs? latest snapshot?
  *   node scripts/autobackup.mjs uninstall                   switch off
  *   node scripts/autobackup.mjs print                       show the launchd file without installing anything
@@ -71,6 +72,12 @@ if (cmd === 'print') {
   if (isLoaded()) try { launchctl('bootout', `gui/${uid}/${LABEL}`); } catch { /* ignore */ }
   launchctl('bootstrap', `gui/${uid}`, PLIST);
   console.log(`Automatic backups are ON.\n  destination: ${dest}\n  schedule:    now, then every hour (skipped when nothing changed)\n  log:         ${LOG}\nCheck with: node scripts/autobackup.mjs status`);
+} else if (cmd === 'set-dest') {
+  if (!args[1]) { console.error('usage: node scripts/autobackup.mjs set-dest <folder>'); process.exit(1); }
+  const d = resolve(args[1].replace(/^~/, homedir()));
+  mkdirSync(d, { recursive: true });
+  writeFileSync(join(ROOT, '.backup-dir'), d + '\n');
+  console.log(`Backups will go to: ${d}\nRun one now with: npm run backup`);
 } else if (cmd === 'uninstall') {
   if (isLoaded()) try { launchctl('bootout', `gui/${uid}/${LABEL}`); } catch { /* ignore */ }
   rmSync(PLIST, { force: true });
@@ -86,6 +93,6 @@ if (cmd === 'print') {
   } else console.log('snapshots:   none yet');
   if (existsSync(LOG)) console.log(`last log:\n${readFileSync(LOG, 'utf8').trim().split('\n').slice(-4).map((l) => '  ' + l).join('\n')}`);
 } else {
-  console.error('usage: node scripts/autobackup.mjs <install [--dest folder] | status | uninstall | print>');
+  console.error('usage: node scripts/autobackup.mjs <install [--dest folder] | set-dest <folder> | status | uninstall | print>');
   process.exit(1);
 }
