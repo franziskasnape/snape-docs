@@ -1,0 +1,22 @@
+{
+  "name": "snape-docs",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Document generator for Snape Art Conservation (offers first; invoices and reports later)",
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:migrate": "wrangler d1 migrations apply DB --local",
+    "db:query": "wrangler d1 execute DB --local --command",
+    "typecheck": "tsc --noEmit",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "hono": "^4.6.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20261001.1",
+    "typescript": "^5.6.0",
+    "wrangler": "^4.0.0"
+  }
+}
