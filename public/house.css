@@ -1,0 +1,146 @@
+/* Snape Art Conservation — house style.
+   Lifted from offers ANG-2026-002/003/004; the fixed .page boxes are replaced by
+   Paged.js pagination with a running header and footer. */
+
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-400.otf) format("opentype"); font-weight: 400; font-style: normal; }
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-600.otf) format("opentype"); font-weight: 600; font-style: normal; }
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-700.otf) format("opentype"); font-weight: 700; font-style: normal; }
+@font-face { font-family: "Amulya";  src: url(/fonts/Amulya-400.otf)  format("opentype"); font-weight: 400; font-style: normal; }
+/* The offers' "Amulya 600" is the Bold file */
+@font-face { font-family: "Amulya";  src: url(/fonts/Amulya-600.otf)  format("opentype"); font-weight: 600; font-style: normal; }
+
+* { margin:0; padding:0; box-sizing:border-box; }
+html { background:#e9e6e1; }
+
+/* ---- page geometry (A4) ---- */
+@page {
+  size: A4;
+  margin: 47mm 17mm 25mm 17mm;
+  @top-left {
+    content: element(hdr);
+    width: 176mm;
+    vertical-align: top;
+    padding-top: 12mm;
+  }
+  @bottom-left {
+    content: element(ftr);
+    width: 176mm;
+    vertical-align: bottom;
+    padding-bottom: 5mm;
+  }
+}
+
+body {
+  background:#ffffff;
+  color:#1a1613;
+  font-family:"Synonym", sans-serif;
+  font-weight:400;
+  font-size:9.5pt;
+  line-height:1.38;
+}
+
+/* Preview on screen before/without pagination */
+.pagedjs_pages { display:flex; flex-direction:column; align-items:center; gap:8mm; padding:8mm 0; }
+.pagedjs_page { background:#fff; box-shadow:0 1px 6px rgba(0,0,0,.18); }
+@media print {
+  html { background:#fff; }
+  .pagedjs_pages { display:block; padding:0; gap:0; }
+  .pagedjs_page { box-shadow:none; }
+}
+
+@page :first {
+  @top-left { content: element(hdr1); width: 176mm; vertical-align: top; padding-top: 12mm; }
+}
+
+/* ---- running header / footer (placed by Paged.js into the margin boxes) ---- */
+.running-header { position: running(hdr); }
+.running-header-first { position: running(hdr1); }
+.running-footer { position: running(ftr); }
+
+/* ---- Brandmark A: full lockup, top left ---- */
+.brand-a { display:flex; align-items:flex-start; gap:4mm; margin-top:4mm; flex-shrink:0; }
+.brand-a .brand-word { font-family:"Synonym", sans-serif; font-weight:700; font-size:21pt; letter-spacing:0.5pt; line-height:0.9; }
+.brand-a .brand-sub { font-family:"Amulya", serif; font-weight:400; font-size:12pt; margin-top:1mm; display:block; }
+.brand-a .brand-divider { width:0.5pt; align-self:stretch; background:#1a1613; margin:0.5mm 0; }
+.brand-a .brand-tagline {
+  font-family:"Synonym", sans-serif; font-weight:600; font-size:6.6pt; letter-spacing:1.2pt;
+  color:#6f5f49; line-height:1.6; text-transform:uppercase; text-align:center; align-self:center;
+}
+
+/* ---- header row ---- */
+.doc-header { display:flex; justify-content:space-between; align-items:flex-start; }
+.doc-meta { margin-top:3mm; font-size:8.3pt; line-height:1.45; text-align:right; }
+.doc-meta .row { display:flex; justify-content:flex-end; gap:3mm; }
+.doc-meta .label { color:#6f5f49; font-weight:600; letter-spacing:0.3pt; }
+
+.doc-eyebrow { font-family:"Synonym", sans-serif; font-weight:700; font-size:7.5pt; letter-spacing:1.6pt; text-transform:uppercase; color:#6f5f49; margin-bottom:1mm; }
+.doc-title { font-family:"Amulya", serif; font-weight:600; font-size:15.5pt; letter-spacing:0.5pt; }
+.doc-title-row { text-align:center; margin-top:2mm; }
+
+.hr { height:0.6pt; background:#1a1613; margin:3mm 0; }
+
+/* ---- two column info block ---- */
+.info-grid { display:flex; gap:8mm; margin-bottom:2.5mm; align-items:flex-start; }
+.info-stack { flex:1; display:flex; flex-direction:column; gap:4mm; }
+.info-col { flex:1; }
+.info-heading { font-family:"Synonym", sans-serif; font-weight:700; font-size:7.3pt; letter-spacing:1.4pt; text-transform:uppercase; color:#6f5f49; margin-bottom:2.5mm; }
+.info-line { display:flex; gap:2mm; padding:0.6mm 0; border-bottom:0.4pt solid #e3ddd2; font-size:9pt; }
+.info-line .k { width:30mm; flex-shrink:0; color:#6f5f49; }
+.info-line .v { flex:1; color:#1a1613; }
+
+.overview-fig { width:66mm; flex:none; margin-top:6.5mm; }
+.overview-fig img { display:block; width:100%; border:0.4pt solid #d8cec2; }
+.overview-fig .cap { font-size:6.8pt; color:#6f5f49; margin-top:1mm; font-weight:600; }
+.overview-fig .cap.note { font-weight:400; font-style:italic; margin-top:0.5mm; }
+
+/* ---- section heading / prose ---- */
+.section-heading { font-family:"Amulya", serif; font-weight:600; font-size:12pt; margin:2.4mm 0 1.5mm 0; break-after:avoid; }
+.section-body { font-size:9.3pt; line-height:1.4; color:#1a1613; margin-bottom:2mm; orphans:3; widows:3; }
+.section-heading-row { display:flex; justify-content:space-between; align-items:baseline; break-after:avoid; break-inside:avoid; margin-top:2.4mm; }
+.keep-with-next { break-after:avoid; }
+.section-heading-row .section-heading { margin-bottom:0; }
+.rate-note { font-size:8.3pt; color:#6f5f49; }
+.clear { clear:both; }
+
+/* ---- tables ---- */
+table.doc-table { width:100%; border-collapse:collapse; margin-top:2mm; font-size:8.8pt; }
+table.doc-table th {
+  text-align:left; font-family:"Synonym", sans-serif; font-weight:700; font-size:7.3pt;
+  letter-spacing:0.8pt; text-transform:uppercase; color:#6f5f49;
+  border-bottom:0.75pt solid #1a1613; padding:2mm 2mm 2mm 0;
+}
+table.doc-table td { padding:1.2mm 2mm 1.2mm 0; border-bottom:0.4pt solid #e3ddd2; vertical-align:top; }
+table.doc-table tr { break-inside:avoid; }
+table.doc-table td.num, table.doc-table th.num { text-align:right; }
+.table-title { display:block; font-weight:600; font-size:9.3pt; }
+.table-desc { display:block; font-size:8.4pt; color:#6f5f49; line-height:1.32; margin-top:0.3mm; }
+
+.row-figs { display:flex; gap:3mm; float:right; margin:0 0 0 5mm; }
+.row-fig { width:25mm; }
+.row-fig img { display:block; width:25mm; height:25mm; object-fit:cover; border:0.4pt solid #d8cec2; }
+.row-fig .cap { font-size:6.3pt; line-height:1.25; color:#6f5f49; margin-top:1mm; font-weight:600; }
+
+.totals { width:100%; margin-top:1mm; margin-bottom:4mm; break-inside:avoid; }
+.totals .trow { display:flex; justify-content:flex-end; gap:8mm; padding:1.1mm 0; font-size:9pt; }
+.totals .trow .tl { color:#6f5f49; width:42mm; text-align:right; }
+.totals .trow .tv { width:40mm; text-align:right; white-space:nowrap; }
+.totals .grand { font-weight:700; font-size:11pt; border-top:0.75pt solid #1a1613; margin-top:1mm; padding-top:2.4mm; }
+
+/* ---- signatures: kept together at the end ---- */
+.sign-group { break-inside:avoid; margin-top:6mm; }
+.sign-block { display:flex; gap:14mm; margin-top:9mm; }
+.sign-box { flex:1; }
+.sign-rule { border-bottom:0.6pt solid #1a1613; height:5mm; }
+.sign-caption { font-size:6.8pt; color:#6f5f49; margin-top:1mm; letter-spacing:0.3pt; text-transform:uppercase; }
+
+/* ---- footer ---- */
+.footer {
+  display:flex; align-items:center;
+  font-size:7.3pt; color:#6f5f49; border-top:0.5pt solid #c9c2b6; padding-top:2.5mm;
+}
+.footer-seal { width:15mm; height:15mm; flex-shrink:0; }
+.footer-address { font-size:7.3pt; color:#6f5f49; flex:1; text-align:center; }
+.footer-page { flex-shrink:0; min-width:15mm; text-align:right; }
+.footer-page::after { content: var(--page-label) " " counter(page) " / " counter(pages); }
+
+.page-break { break-after:page; height:0; }
