@@ -27,3 +27,19 @@ export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContex
     imageSrc,
   };
 }
+
+import type { Settings } from './types';
+
+export async function getSettings(env: Env): Promise<Settings> {
+  const { results } = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
+  const m = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value)]));
+  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de' };
+}
+
+/** Next number for a type prefix in the given year: ANG-2026-005 */
+export async function nextNumber(env: Env, prefix: string, year: number): Promise<string> {
+  const like = `${prefix}-${year}-%`;
+  const { results } = await env.DB.prepare('SELECT number FROM documents WHERE number LIKE ?').bind(like).all<{ number: string }>();
+  const max = results.reduce((a, r) => Math.max(a, Number(r.number.split('-')[2]) || 0), 0);
+  return `${prefix}-${year}-${String(max + 1).padStart(3, '0')}`;
+}

@@ -4,7 +4,14 @@ import type { OfferData } from './doctypes/offer/schema';
 import { renderOffer } from './doctypes/offer/render';
 import { offer004, ctx004 } from './fixtures/offer-004';
 
+import { documents } from './routes/documents';
+import { clients } from './routes/clients';
+import { docTypes } from './core/registry';
+
 const app = new Hono<{ Bindings: Env }>();
+app.route('/api/documents', documents);
+app.route('/api/clients', clients);
+app.get('/api/doctypes', (c) => c.json(Object.values(docTypes).map(({ id, prefix, labels, statuses }) => ({ id, prefix, labels, statuses }))));
 
 app.get('/api/health', async (c) => {
   const row = await c.env.DB.prepare('SELECT count(*) AS n FROM documents').first<{ n: number }>();

@@ -17,9 +17,16 @@ export interface RenderContext {
   imageSrc(id: number): string;
 }
 
+export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang }
+
 export interface DocType<D = unknown> {
   id: string;
   prefix: string;
   labels: Record<Lang, string>;
+  statuses: string[];
+  /** Initial `data` for a new document; `today` is ISO yyyy-mm-dd */
+  defaultData(lang: Lang, settings: Settings, today: string): D;
+  /** Default Objekt lines for a new document */
+  defaultArtwork(lang: Lang): { k: string; v: string }[];
   render(data: D, ctx: RenderContext): string;
 }

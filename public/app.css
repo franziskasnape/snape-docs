@@ -1,0 +1,54 @@
+/* App UI (not the printed documents — those use house.css) */
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-400.otf) format("opentype"); font-weight: 400; }
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-600.otf) format("opentype"); font-weight: 600; }
+@font-face { font-family: "Synonym"; src: url(/fonts/Synonym-700.otf) format("opentype"); font-weight: 700; }
+@font-face { font-family: "Amulya"; src: url(/fonts/Amulya-400.otf) format("opentype"); font-weight: 400; }
+
+:root {
+  --ink:#1a1613; --muted:#6f5f49; --line:#e3ddd2; --bg:#f6f4f0; --card:#fff; --accent:#6f5f49;
+  --danger:#a33b2f;
+}
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--ink); font:400 14px/1.45 "Synonym", system-ui, sans-serif; }
+a { color: var(--accent); }
+
+.topbar { display:flex; align-items:center; justify-content:space-between; padding:12px 28px; background:var(--card); border-bottom:1px solid var(--line); }
+.brand-word { font-weight:700; font-size:20px; letter-spacing:.5px; margin-right:8px; }
+.brand-sub { font-family:"Amulya", serif; font-size:14px; }
+.topbar nav a { margin-left:22px; text-decoration:none; color:var(--muted); font-weight:600; padding:4px 0; }
+.topbar nav a.active { color:var(--ink); border-bottom:2px solid var(--ink); }
+
+.wrap { max-width:1100px; margin:24px auto; padding:0 20px; }
+.toolbar { display:flex; gap:12px; align-items:center; margin-bottom:16px; }
+.toolbar h1 { font-family:"Amulya", serif; font-weight:400; font-size:26px; margin:0 auto 0 0; }
+
+input, select, textarea { font:inherit; padding:7px 10px; border:1px solid #cfc7ba; border-radius:6px; background:#fff; color:var(--ink); }
+input:focus, select:focus, textarea:focus { outline:2px solid #b9a98c; outline-offset:0; }
+button { font:inherit; cursor:pointer; border-radius:6px; padding:7px 14px; border:1px solid #cfc7ba; background:#fff; color:var(--ink); }
+button.primary { background:var(--ink); color:#fff; border-color:var(--ink); font-weight:600; }
+button.ghost { background:transparent; }
+button.link { border:0; background:none; padding:0 6px; color:var(--accent); text-decoration:underline; }
+button.link.danger { color:var(--danger); }
+
+table.list { width:100%; border-collapse:collapse; background:var(--card); border:1px solid var(--line); border-radius:8px; overflow:hidden; }
+table.list th { text-align:left; font-size:11px; letter-spacing:1px; text-transform:uppercase; color:var(--muted); padding:10px 12px; border-bottom:1px solid var(--ink); }
+table.list td { padding:10px 12px; border-bottom:1px solid var(--line); vertical-align:middle; }
+table.list tr:hover td { background:#faf8f4; }
+.row-actions { text-align:right; white-space:nowrap; }
+.row-actions a { margin-right:6px; }
+.muted { color:var(--muted); }
+
+.pill { font-size:11px; font-weight:600; letter-spacing:.5px; text-transform:uppercase; padding:2px 8px; border-radius:10px; background:#eee8dd; color:var(--muted); }
+.pill.sent { background:#e1e9f2; color:#35597f; }
+.pill.accepted { background:#e0eddc; color:#3d6b34; }
+.pill.declined { background:#f2dfdb; color:var(--danger); }
+
+dialog { border:0; border-radius:10px; padding:24px; width:min(440px, 92vw); box-shadow:0 10px 40px rgba(0,0,0,.25); }
+dialog::backdrop { background:rgba(26,22,19,.45); }
+dialog h2 { font-family:"Amulya", serif; font-weight:400; margin:0 0 14px; }
+dialog label { display:block; margin-bottom:12px; font-weight:600; font-size:12px; color:var(--muted); }
+dialog label select { display:block; width:100%; margin-top:4px; font-weight:400; color:var(--ink); }
+dialog details { margin-bottom:12px; }
+dialog details input { display:block; width:100%; margin-top:6px; }
+dialog .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
+table.list td:first-child, table.list td:nth-child(6) { white-space:nowrap; }

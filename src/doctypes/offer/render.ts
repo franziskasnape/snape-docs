@@ -57,8 +57,22 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   });
 }
 
+const addDays = (iso: string, n: number) => {
+  const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
+};
+
 export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
+  statuses: ['draft', 'sent', 'accepted', 'declined'],
+  defaultData: (_lang, settings, today) => ({
+    meta: { date: today, validUntil: addDays(today, settings.validityDays) },
+    blocks: [{ type: 'measures', kind: 'main', rows: [] }],
+    cost: { materials: true },
+    rate: settings.hourlyRate,
+  }),
+  defaultArtwork: (lang) => (lang === 'de'
+    ? ['Künstler/in', 'Titel', 'Technik / Material', 'Masse (H × B × T)']
+    : ['Artist', 'Title', 'Technique / Material', 'Dimensions (H × W × D)']).map((k) => ({ k, v: '' })),
   render: (d, ctx) => renderOffer(d, ctx),
 };

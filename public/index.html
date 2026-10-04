@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snape Docs</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-word">SNAPE</span><span class="brand-sub">Art Conservation</span></div>
+  <nav><a href="/" class="active">Documents</a><a href="/snippets.html">Snippets</a><a href="/settings.html">Settings</a></nav>
+</header>
+
+<main class="wrap">
+  <div class="toolbar">
+    <h1>Documents</h1>
+    <input id="search" type="search" placeholder="Search number, client, title…">
+    <select id="statusFilter"><option value="">All statuses</option></select>
+    <button id="newBtn" class="primary">New offer</button>
+  </div>
+
+  <table class="list" id="list">
+    <thead><tr><th>Number</th><th>Title</th><th>Client</th><th>Lang</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <tbody></tbody>
+  </table>
+  <p id="empty" class="muted" hidden>No documents yet.</p>
+</main>
+
+<dialog id="newDlg">
+  <form method="dialog" id="newForm">
+    <h2>New offer</h2>
+    <label>Language
+      <select name="lang"><option value="de">Deutsch</option><option value="en">English</option></select>
+    </label>
+    <label>Client
+      <select name="clientId" id="clientSel"><option value="">— none yet —</option></select>
+    </label>
+    <details><summary>New client</summary>
+      <input name="cName" placeholder="Name"><input name="cAddress" placeholder="Address">
+      <input name="cContact" placeholder="Contact person"><input name="cPhone" placeholder="Phone"><input name="cEmail" placeholder="E-mail">
+    </details>
+    <div class="actions"><button value="cancel" class="ghost">Cancel</button><button value="ok" class="primary">Create</button></div>
+  </form>
+</dialog>
+
+<script>
+const $ = (s) => document.querySelector(s);
+let docs = [];
+const api = async (url, opt) => { const r = await fetch(url, opt && { ...opt, headers: { 'content-type': 'application/json' }, body: opt.body && JSON.stringify(opt.body) }); if (!r.ok) throw new Error(await r.text()); return r.json(); };
+
+async function load() {
+  docs = await api('/api/documents');
+  render();
+}
+
+function render() {
+  const q = $('#search').value.toLowerCase(), st = $('#statusFilter').value;
+  const rows = docs.filter((d) => (!st || d.status === st) && [d.number, d.client, d.title].join(' ').toLowerCase().includes(q));
+  $('#list tbody').innerHTML = rows.map((d) => `<tr data-id="${d.id}">
+    <td><a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td>
+    <td>${esc(d.title || '—')}</td><td>${esc(d.client || '—')}</td><td>${d.lang.toUpperCase()}</td>
+    <td><span class="pill ${d.status}">${d.status}</span></td><td class="muted">${esc(d.updated_at.slice(0, 10))}</td>
+    <td class="row-actions">
+      <a href="/edit.html?id=${d.id}">Edit</a>
+      <a href="/documents/${d.id}/print" target="_blank">PDF</a>
+      <button data-act="dup" class="link">Duplicate</button>
+      <button data-act="del" class="link danger">Delete</button></td></tr>`).join('');
+  $('#empty').hidden = rows.length > 0;
+}
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+$('#list').addEventListener('click', async (e) => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const id = Number(btn.closest('tr').dataset.id), d = docs.find((x) => x.id === id);
+  if (btn.dataset.act === 'dup') { const r = await api('/api/documents', { method: 'POST', body: { duplicateOf: id } }); location.href = `/edit.html?id=${r.id}`; }
+  if (btn.dataset.act === 'del' && confirm(`Delete ${d.number}? This cannot be undone.`)) { await api(`/api/documents/${id}`, { method: 'DELETE' }); load(); }
+});
+$('#search').addEventListener('input', render);
+$('#statusFilter').addEventListener('change', render);
+
+(async () => {
+  const types = await api('/api/doctypes');
+  for (const s of types.flatMap((t) => t.statuses).filter((v, i, a) => a.indexOf(v) === i)) $('#statusFilter').append(new Option(s, s));
+  const clients = await api('/api/clients');
+  for (const c of clients) $('#clientSel').append(new Option(c.name, c.id));
+  load();
+})();
+
+$('#newBtn').addEventListener('click', () => $('#newDlg').showModal());
+$('#newForm').addEventListener('submit', async (e) => {
+  if (e.submitter?.value !== 'ok') return;
+  const f = Object.fromEntries(new FormData(e.target));
+  let clientId = f.clientId ? Number(f.clientId) : undefined;
+  if (f.cName?.trim()) clientId = (await api('/api/clients', { method: 'POST', body: { name: f.cName.trim(), address: f.cAddress, contact: f.cContact, phone: f.cPhone, email: f.cEmail } })).id;
+  const r = await api('/api/documents', { method: 'POST', body: { type: 'offer', lang: f.lang, clientId } });
+  location.href = `/edit.html?id=${r.id}`;
+});
+</script>
+</body>
+</html>
