@@ -10,8 +10,10 @@
     "db:query": "wrangler d1 execute DB --local --command",
     "typecheck": "tsc --noEmit",
     "deploy": "wrangler deploy",
-    "backup": "bash scripts/backup.sh",
-    "seed:snippets": "node scripts/seed-snippets.mjs"
+    "backup": "node scripts/backup.mjs",
+    "seed:snippets": "node scripts/seed-snippets.mjs",
+    "restore": "node scripts/restore.mjs",
+    "backup:auto": "node scripts/autobackup.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"

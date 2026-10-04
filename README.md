@@ -41,7 +41,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, inserted from the editor
 - **Settings** (`/settings.html`): hourly rate, offer validity, default language
 - **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
-- **Backup**: `npm run backup`
+- **Backup**: `npm run backup`, optional hourly automatic backups, `npm run restore`
 
 ## Project layout
 

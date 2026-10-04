@@ -11,7 +11,8 @@ npm run dev            # http://localhost:8787 (wrangler dev; hot reloads src/ a
 npm run typecheck      # tsc --noEmit — run after every TypeScript change
 npm run db:migrate     # apply SQL migrations to the LOCAL database
 npm run db:query "select …"   # SQL against the local database
-npm run backup         # database dump + photos to ~/git/projects/snape-docs-backups/
+npm run backup         # snapshot (db dump + photos) to the folder in .backup-dir, default ~/git/projects/snape-docs-backups/
+npm run restore -- latest     # restore a snapshot (stop the dev server first; current data is kept aside)
 ```
 
 Verify UI changes in a browser; the live preview and History side-by-side only finish rendering while the

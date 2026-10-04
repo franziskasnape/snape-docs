@@ -80,36 +80,69 @@ Photos are stored resized (max 1600 px JPEG). Keep the originals and RAW files i
 
 ## 5. Backup and restore
 
-**Back up** (database dump + photos) to a time-stamped folder outside the repository:
+A backup is two things: a compressed copy of the database, and the photos. The photos never change once stored, so
+they are kept **once** in a shared `photos/` folder and every snapshot just points at them. Backups therefore stay
+small even if you take many.
 
-```bash
-npm run backup
-# -> ~/git/projects/snape-docs-backups/2026-10-04_175332/{database.sql, r2/}
+```
+<backup folder>/
+  photos/                         every photo ever stored (grows slowly, never deleted)
+  snapshots/2026-10-04_175332/    database.sql.gz, r2-index/ (which photo is which), manifest.json
 ```
 
-To put backups somewhere else, for example a Google Drive folder:
+**Where to keep them:** not only on this Mac. A copy on the same disk does not survive a lost or broken computer.
+Use a folder inside **Google Drive for desktop**, which uploads it automatically. Set it once:
 
 ```bash
-BACKUP_DIR="$HOME/Google Drive/My Drive/Snape/Backups" npm run backup
+node scripts/autobackup.mjs install --dest "$HOME/Library/CloudStorage/GoogleDrive-<account>/My Drive/Snape Art Conservation/Backups/snape-docs"
 ```
 
-Do this regularly, and before any big change (a new version of the app, deleting documents).
+(or just run a one-off `npm run backup -- --dest "<folder>"`; without `--dest` the default is
+`~/git/projects/snape-docs-backups`, which is on this disk only.) The chosen folder is remembered in the git-ignored
+file `.backup-dir`. Also turn on **Time Machine** with an external drive if you can: it is a second, independent copy.
 
-**Restore** from a backup (this **replaces** the current data, so make a fresh backup first if in doubt):
+### Back up by hand
+
+```bash
+npm run backup                     # snapshot now; does nothing if nothing changed since the last one
+npm run backup -- --force          # snapshot even if nothing changed
+npm run backup -- --dest "<folder>"
+```
+
+### Back up automatically (macOS)
+
+```bash
+node scripts/autobackup.mjs install      # switch on: backs up now, then every hour while you are logged in
+node scripts/autobackup.mjs status       # is it on? when was the last snapshot?
+node scripts/autobackup.mjs uninstall    # switch off (existing backups stay)
+```
+
+(`npm run backup:auto -- status` does the same as the second line.) Every run is skipped when nothing changed, so an
+hourly schedule costs almost nothing. If the Mac was asleep, the missed run happens when it wakes up. The log is
+`~/Library/Logs/snape-docs-backup.log`. The first time, macOS may ask whether `node` may access your Google Drive
+folder: allow it, otherwise the scheduled job cannot write there.
+
+**How long snapshots are kept:** all of them for 14 days, then one per day up to 90 days, then one per month.
+The newest is never removed. Photos are never removed from the mirror.
+
+### Restore
 
 1. Stop the server (`Ctrl+C`).
-2. Run these, replacing `<folder>` with the backup folder name:
+2. Run (replace `latest` with a snapshot name such as `2026-10-04_175332` if you want an older one):
 
    ```bash
    cd ~/git/projects/snape-docs
-   rm -rf .wrangler/state
-   npx wrangler d1 execute DB --local --file ~/git/projects/snape-docs-backups/<folder>/database.sql
-   cp -R ~/git/projects/snape-docs-backups/<folder>/r2 .wrangler/state/v3/r2
+   npm run restore -- latest
    npm run dev
    ```
 
-`database.sql` already contains the tables and the migration history, so do **not** run `npm run db:migrate` before
-restoring. (Tested: this recreates all tables, documents and photos.)
+Your current data is **not** deleted: it is moved to `.wrangler/state.before-restore-<time>`, so a restore can be undone
+by moving that folder back. Add `--dest "<folder>"` if the backups are not in the remembered folder.
+(Tested: a restore recreates all documents, clients, snippets, history and every photo, byte for byte.)
+
+Older backups made by the previous version of this tool (folders directly under `snape-docs-backups/` containing
+`database.sql` and `r2/`) are not read by `npm run restore`; they can be restored by hand with
+`npx wrangler d1 execute DB --local --file <folder>/database.sql` and copying `<folder>/r2` to `.wrangler/state/v3/r2`.
 
 ## 6. Useful commands
 
@@ -117,7 +150,7 @@ restoring. (Tested: this recreates all tables, documents and photos.)
 npm run typecheck                                  # check the TypeScript for errors
 npm run db:query "select number, status from documents"   # run SQL against the local database
 npm run db:migrate                                 # apply new database migrations (after updating the code)
-npm run backup                                     # back up database + photos
+npm run backup                                     # snapshot of database + photos (see section 5)
 ```
 
 Importing the original hand-built offer HTML files (already done for ANG-2026-002/003/004):
@@ -140,4 +173,4 @@ node scripts/load-seed.mjs                              # loads seed/ into the l
 | `Save failed` shows next to the editor header | The server stopped or the document was deleted; reload the page |
 | Fonts look wrong in the PDF | Make sure *Background graphics* is on and that you used the **Print / PDF** button (not the editor page itself) |
 | You edited the database schema and the app crashes | Run `npm run db:migrate`; migrations are applied in order |
-| Everything is gone | You probably deleted `.wrangler`. Restore from the latest backup (section 5) |
+| Everything is gone | You probably deleted `.wrangler`. Run `npm run restore -- latest` (section 5) |

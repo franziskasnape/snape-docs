@@ -75,7 +75,7 @@ Skip this if you start fresh online. The **hosted data is separate from your loc
 
 ```bash
 # 1. back up first, always
-npm run backup
+npm run backup -- --force
 
 # 2. export the local data (rows only, not the table definitions), and make it safe to re-run
 npx wrangler d1 export DB --local --no-schema \
