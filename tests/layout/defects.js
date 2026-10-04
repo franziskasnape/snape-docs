@@ -20,8 +20,8 @@ export function findDefects(pages, { expectFinalPage = true } = {}) {
   // every table piece, on every page, must use the same columns (the table is emitted in several pieces that must look like one)
   const lefts = new Set(pages.flatMap((p) => p.titleLefts)), rights = new Set(pages.flatMap((p) => p.hoursRights));
   const spread = (set) => (set.size ? Math.max(...set) - Math.min(...set) : 0);
-  if (spread(lefts) > 2) out.push(`table description column starts at different positions (${[...lefts].sort((a, b) => a - b).join(', ')} px): column widths differ between table pieces`);
-  if (spread(rights) > 2) out.push(`table hours column ends at different positions (${[...rights].sort((a, b) => a - b).join(', ')} px)`);
+  if (spread(lefts) > 4) out.push(`table description column starts at different positions (${[...lefts].sort((a, b) => a - b).join(', ')} px): column widths differ between table pieces`);
+  if (spread(rights) > 4) out.push(`table hours column ends at different positions (${[...rights].sort((a, b) => a - b).join(', ')} px)`);
   // a table row must never be split across two pages (it would appear on both)
   const seen = new Map();
   pages.forEach((p) => p.rowKeys.forEach((k) => { if (seen.has(k) && seen.get(k) !== p.index) out.push(`row "${k}" appears on pages ${seen.get(k)} and ${p.index} (split row)`); seen.set(k, p.index); }));

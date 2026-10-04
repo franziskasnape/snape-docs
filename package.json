@@ -24,6 +24,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261001.1",
+    "@vivliostyle/core": "^2.45.2",
     "node-html-parser": "^9.0.4",
     "pagedjs": "^0.4.3",
     "puppeteer-core": "^25.12.0",

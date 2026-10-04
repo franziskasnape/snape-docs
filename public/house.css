@@ -53,9 +53,9 @@ body {
 }
 
 /* ---- running header / footer (placed by Paged.js into the margin boxes) ---- */
-.running-header { position: running(hdr); }
-.running-header-first { position: running(hdr1); }
-.running-footer { position: running(ftr); }
+.running-header { position: running(hdr); width:176mm; }
+.running-header-first { position: running(hdr1); width:176mm; }
+.running-footer { position: running(ftr); width:176mm; }
 
 /* ---- Brandmark A: full lockup, top left ---- */
 .brand-a { display:flex; align-items:flex-start; gap:4mm; margin-top:4mm; flex-shrink:0; }
@@ -108,9 +108,12 @@ body {
 table.doc-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-top:2mm; font-size:8.8pt; }
 table.doc-table.cont { margin-top:0; }
 /* Column widths live on the cells (not only a <colgroup>): Paged.js drops the colgroup when it splits a table across pages */
-table.doc-table th:first-child, table.doc-table td:first-child { width:9mm; }
-table.doc-table th.num, table.doc-table td.num { width:36mm; }
 .keep { break-inside:avoid; }
+tbody.keep-last { break-inside:avoid; }
+table.doc-table tr.totals td { border-bottom:0; border-top:0.75pt solid #1a1613; padding-top:2.4mm; font-weight:700; font-size:11pt; white-space:nowrap; }
+table.doc-table tr.totals td.tl { color:#6f5f49; text-align:right; }
+table.doc-table tr.totals td.tv { text-align:right; }
+table.doc-table { margin-bottom:4mm; }
 table.doc-table th {
   text-align:left; font-family:"Synonym", sans-serif; font-weight:700; font-size:7.3pt;
   letter-spacing:0.8pt; text-transform:uppercase; color:#6f5f49;

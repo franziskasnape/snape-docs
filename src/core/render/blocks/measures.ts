@@ -31,20 +31,12 @@ export function measures(ctx: RenderContext, b: MeasuresBlock, L: MeasureLabels)
     + `<td class="num">${fmtHours(r.hoursMin, r.hoursMax)}</td></tr>`;
   const cols = '<colgroup><col style="width:9mm"><col><col style="width:36mm"></colgroup>';
   const thead = `<thead><tr><th></th><th>${esc(L.descCol)}</th><th class="num">${esc(L.hoursCol)}</th></tr></thead>`;
-  const table = (rows: string, head = '', cont = false) => `<table class="doc-table${cont ? ' cont' : ''}">${cols}${head}<tbody>${rows}</tbody></table>`;
   const t = sumHours(b.rows);
   const heading = `<div class="section-heading-row"><div class="section-heading">${esc(L.heading)}</div><div class="rate-note">${esc(L.rateNote)}</div></div>`;
-  const totals = `<div class="totals"><div class="trow grand"><span class="tl">${esc(L.totalLabel)}</span><span class="tv">${L.approx} ${fmtHours(t.min, t.max)} ${esc(L.hoursUnit)}</span></div></div>`;
-
-  // The table is emitted in up to three pieces that look like one table (same column widths, no gaps):
-  //   [heading + header + first row]   kept together, so a heading is never left alone at the bottom of a page
-  //   [middle rows]                    free to flow across pages
-  //   [last row + total line]          kept together, so the total is never alone at the top of a page
-  // Paged.js cannot "keep with next" across table rows, but it does honour break-inside: avoid on a wrapper.
+  const totalRow = `<tr class="totals"><td></td><td class="tl">${esc(L.totalLabel)}</td><td class="num tv">${L.approx} ${fmtHours(t.min, t.max)} ${esc(L.hoursUnit)}</td></tr>`;
   const rows = b.rows.map(rowHtml);
-  if (rows.length <= 1) return `<div class="keep">${heading}${table(rows.join(''), thead)}${totals}</div>`;
-  const middle = rows.slice(1, -1);
-  return `<div class="keep">${heading}${table(rows[0], thead)}</div>`
-    + (middle.length ? table(middle.join(''), '', true) : '')
-    + `<div class="keep">${table(rows[rows.length - 1], '', true)}${totals}</div>`;
+  // ONE table, so the page-layout engine can repeat its header row on continuation pages.
+  // The last row and the total line share a tbody with break-inside: avoid, so the total is never alone at the top of a page.
+  const body = rows.length ? `<tbody>${rows.slice(0, -1).join('')}</tbody>` : '';
+  return `${heading}<table class="doc-table">${cols}${thead}${body}<tbody class="keep-last">${rows.length ? rows[rows.length - 1] : ''}${totalRow}</tbody></table>`;
 }

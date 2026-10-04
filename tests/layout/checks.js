@@ -8,9 +8,10 @@ export function analyze() {
   // Containers that only group content (we look inside them); everything else is a "block" we reason about.
   const TRANSPARENT = /(^|\s)(keep|final-page|info-stack|info-col)(\s|$)/;
   const BLOCK = /(^|\s)(section-heading-row|section-heading|section-body|totals|sign-group|overview-fig|info-grid|doc-title-row|page-break)(\s|$)/;
-  const pages = [...document.querySelectorAll('.pagedjs_page')];
+  const vs = !!document.querySelector('[data-vivliostyle-page-container]');            // Vivliostyle or Paged.js output
+  const pages = vs ? [...document.querySelectorAll('[data-vivliostyle-page-container]')] : [...document.querySelectorAll('.pagedjs_page')];
   return pages.map((pg, i) => {
-    const area = pg.querySelector('.pagedjs_page_content');
+    const area = vs ? pg.querySelector('[data-vivliostyle-page-area-container]') : pg.querySelector('.pagedjs_page_content');
     const ar = area.getBoundingClientRect();
     const blocks = [];
     (function walk(el) {
@@ -23,8 +24,8 @@ export function analyze() {
     const maxBottom = rects.length ? Math.max(...rects.map((r) => r.bottom)) : ar.top;
     const first = blocks[0], last = blocks[blocks.length - 1];
     const isHeading = (b) => b && /(^|\s)(section-heading|section-heading-row)(\s|$)/.test(cls(b));
-    const overflow = [...area.querySelectorAll('*')].filter((e) => { const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom > ar.bottom + 1; }).length;
-    const rowEls = [...area.querySelectorAll('tbody tr')];
+    const overflow = [...area.querySelectorAll('*')].filter((e) => { if (e.hasAttribute('data-vivliostyle-page-area')) return false; /* engine wrapper, not content */ const r = e.getBoundingClientRect(); return r.height > 0 && r.bottom > ar.bottom + 1; }).length;
+    const rowEls = [...area.querySelectorAll('tbody tr:not(.totals)')];
     return {
       index: i + 1,
       areaMm: Math.round(mm(ar.height)),
@@ -34,7 +35,7 @@ export function analyze() {
       empty: area.innerText.trim() === '',
       overflow,
       headingLast: isHeading(last),
-      totalsFirst: /(^|\s)totals(\s|$)/.test(cls(first)),
+      totalsFirst: /(^|\s)totals(\s|$)/.test(cls(first)) || (first?.tagName === 'TABLE' && !!first.querySelector('tbody tr')?.classList.contains('totals')),
       startsWithTable: first?.tagName === 'TABLE',
       hasHeaderRow: !!(first?.tagName === 'TABLE' && first.querySelector('thead')),
       rowTitles: rowEls.map((tr) => (tr.querySelector('.table-title')?.innerText || '').trim()),
