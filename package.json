@@ -13,7 +13,9 @@
     "backup": "node scripts/backup.mjs",
     "seed:snippets": "node scripts/seed-snippets.mjs",
     "restore": "node scripts/restore.mjs",
-    "backup:auto": "node scripts/autobackup.mjs"
+    "backup:auto": "node scripts/autobackup.mjs",
+    "postinstall": "node scripts/postinstall.mjs",
+    "fonts": "node scripts/install-fonts.mjs"
   },
   "dependencies": {
     "hono": "^4.6.0"

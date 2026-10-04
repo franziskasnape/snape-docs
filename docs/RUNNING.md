@@ -18,17 +18,24 @@ Then, in the project folder:
 
 ```bash
 cd ~/git/projects/snape-docs
-npm install              # downloads the dependencies
+npm install              # downloads the dependencies (and copies the page-layout script into public/)
+npm run fonts -- "<folder with the downloaded Synonym and Amulya fonts>"
 npm run db:migrate       # creates the local SQLite database and its tables
 ```
+
+The studio fonts **Synonym** and **Amulya** are free from <https://www.fontshare.com> but their licence does not allow
+publishing them, so they are not in the repository. Download both, then point `npm run fonts` at the folder where they
+ended up (it searches the folder recursively, for example `~/Desktop/Website`). Without them the app works but
+documents are drawn in a plain sans-serif.
 
 Optional, with the app running (see below):
 
 ```bash
-npm run seed:snippets    # loads the starter library: 24 treatment rows + 2 artist bios, German and English
+npm run seed:snippets    # loads the starter library: generic treatment rows, German and English
 ```
 
-The English wording in the starter library is a draft and is marked **needs review** on the Snippets page.
+The English wording in the starter library is a draft and is marked **needs review** on the Snippets page. If you keep
+your own full library in `seed/snippets-seed.private.json` (git-ignored), that file is used instead of the generic one.
 
 ## 2. Start and stop
 
@@ -153,7 +160,7 @@ npm run db:migrate                                 # apply new database migratio
 npm run backup                                     # snapshot of database + photos (see section 5)
 ```
 
-Importing the original hand-built offer HTML files (already done for ANG-2026-002/003/004):
+Importing existing hand-built offer HTML files (one-off; they contain client data, so keep them out of the repository):
 
 ```bash
 node scripts/import-offers.mjs path/to/offer.html ...   # parses them into seed/

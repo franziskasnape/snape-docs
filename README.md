@@ -14,6 +14,7 @@ without a rewrite (D1 = SQLite, R2 = image storage).
 ```bash
 cd ~/git/projects/snape-docs
 npm install              # first time only
+npm run fonts -- "<folder with the downloaded Synonym + Amulya fonts>"   # first time only; fonts are not in the repo
 npm run db:migrate       # first time only: creates the local database
 npm run dev              # starts the app at http://localhost:8787
 ```
@@ -27,6 +28,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 | [docs/RUNNING.md](docs/RUNNING.md) | Install, start/stop, where your data lives, backup and restore, troubleshooting |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy to Cloudflare, protect it with a login, move your data, update later |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, adding a document type, changing the data shape, conventions |
+| [docs/PUBLISHING.md](docs/PUBLISHING.md) | **This repository is public**: what must never be committed, the publish guard, new-computer setup |
 | [CLAUDE.md](CLAUDE.md) | Short project guide for AI coding sessions |
 
 ## What it does
@@ -57,5 +59,6 @@ docs/                the guides above
 
 ## Privacy
 
-Client data (names, addresses, photos) lives in `.wrangler/` and `seed/`, both **git-ignored**. Backups are written
-outside the repository. The repository itself contains no client data.
+This repository is **public** and contains code only. Client data (names, addresses, photos), your full snippet
+library and the fonts live outside it (`.wrangler/`, `seed/`, `public/fonts/`: all git-ignored); backups are written to
+Google Drive. See [docs/PUBLISHING.md](docs/PUBLISHING.md) for the rules and the automatic push guard.

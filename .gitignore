@@ -1,7 +1,50 @@
+# --- dependencies and local runtime data (contains client documents and photos) ---
 node_modules/
 .wrangler/
 .dev.vars
+.env
+.env.*
 *.log
 .DS_Store
+
+# --- private working files ---
 seed/
 .backup-dir
+*.bundle
+
+# --- NOT part of the public repository -------------------------------------------------------
+# Fonts: the Fontshare licence forbids publishing them. Install locally with `npm run fonts -- <folder>`.
+public/fonts/*.otf
+public/fonts/*.ttf
+public/fonts/*.woff
+public/fonts/*.woff2
+# Third-party script copied from node_modules by `npm install` (scripts/postinstall.mjs)
+public/paged.polyfill.js
+
+# Anything that could be client data or artwork: images, documents, exports, databases.
+# (The only image in the repository is the studio seal, allowed below.)
+*.jpg
+*.jpeg
+*.heic
+*.tif
+*.tiff
+*.gif
+*.webp
+*.png
+!public/seal.png
+*.pdf
+*.indd
+*.psd
+*.xls
+*.xlsx
+*.doc
+*.docx
+*.numbers
+*.pages
+*.sqlite
+*.sqlite3
+*.db
+# SQL dumps and exports; the only SQL files in the repository are the schema migrations
+*.sql
+!migrations/*.sql
+database.sql*

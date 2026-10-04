@@ -15,10 +15,17 @@ npm run backup         # snapshot (db dump + photos) to the folder in .backup-di
 npm run restore -- latest     # restore a snapshot (stop the dev server first; current data is kept aside)
 ```
 
+Fonts and `public/paged.polyfill.js` are not in git (`npm run fonts`, `npm install`).
+
 Verify UI changes in a browser; the live preview and History side-by-side only finish rendering while the
 browser tab is visible (Paged.js pauses in hidden tabs).
 
 ## Rules that matter
+
+- **This repository is PUBLIC on GitHub.** Code only. Never commit client names, piece details (artists, titles,
+  conditions), photos/images (except `public/seal.png`), exports, databases, fonts, keys, or text copied from real offers
+  — not in code, docs, comments, tests, fixtures, screenshots or commit messages. Use invented placeholder data in
+  examples and tests. Read `docs/PUBLISHING.md`; the pre-push guard (`scripts/pre-push-guard.sh`) enforces part of this.
 
 - **The editor UI is English; generated documents are German or English.** Printed labels are keys translated at
   render time (`src/doctypes/*/i18n.ts`); never hard-code German into `public/edit.js` or other UI text.
@@ -37,8 +44,8 @@ browser tab is visible (Paged.js pauses in hidden tabs).
 ## Testing notes
 
 There is no automated test suite. `public/diff.js` is a plain script that also works under Node (`module.exports`),
-so its logic can be tested with a small script. For rendering changes, compare `/documents/N/print` for the imported
-offers (ANG-2026-002/003/004) before and after; their totals and cost paragraph should not change.
+so its logic can be tested with a small script. For rendering changes, compare `/documents/N/print` of existing local
+documents before and after; totals and the cost paragraph should not change. Test with invented data, never real jobs.
 
 ## Git
 
