@@ -50,6 +50,8 @@ refuses the push if a commit contains
 2. any private term listed in **`.git/sensitive-terms.txt`** (client names, artist names, piece titles, street names…).
    That file sits inside `.git/`, so it is never pushed. Add new clients and artists to it as you take on work.
 
+The same rules are also checked by `npm test` (`tests/unit/repo-hygiene.test.js`, `tests/unit/guard.test.js`), so a bad `.gitignore` change or a leaked name shows up as a failing test.
+
 It is a safety net, not a guarantee: it cannot recognise a client's name it has not been told about. Before pushing
 anything new, glance at `git diff --stat origin/main` and the new files.
 

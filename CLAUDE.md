@@ -9,6 +9,8 @@ architecture and `docs/RUNNING.md` / `docs/DEPLOY.md` for operations.
 ```bash
 npm run dev            # http://localhost:8787 (wrangler dev; hot reloads src/ and public/)
 npm run typecheck      # tsc --noEmit — run after every TypeScript change
+npm test               # 60 fast unit tests (~10 s)
+npm run test:layout    # print-layout tests in headless Chrome (~2 min) — run after ANY change to house.css / render code
 npm run db:migrate     # apply SQL migrations to the LOCAL database
 npm run db:query "select …"   # SQL against the local database
 npm run backup         # snapshot (db dump + photos) to the folder in .backup-dir, default ~/git/projects/snape-docs-backups/
@@ -43,9 +45,11 @@ browser tab is visible (Paged.js pauses in hidden tabs).
 
 ## Testing notes
 
-There is no automated test suite. `public/diff.js` is a plain script that also works under Node (`module.exports`),
-so its logic can be tested with a small script. For rendering changes, compare `/documents/N/print` of existing local
-documents before and after; totals and the cost paragraph should not change. Test with invented data, never real jobs.
+`npm test` and `npm run test:layout` (see `docs/DEVELOPMENT.md#tests`). Use them: run the unit tests after logic changes
+and the layout tests after any change to `public/house.css`, `src/core/render/**` or `src/doctypes/*/render.ts`. When fixing
+a layout bug, add a failing variant/check first. All fixtures are invented (`tests/layout/fixtures.js`); never put real
+client or piece data in a test. `public/diff.js` is a plain browser script that publishes `globalThis.DocDiff`.
+Layout tests launch headless Chrome with a temporary profile (no window); they skip themselves if Chrome is not found.
 
 ## Git
 

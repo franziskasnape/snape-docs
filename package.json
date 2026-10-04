@@ -15,7 +15,9 @@
     "restore": "node scripts/restore.mjs",
     "backup:auto": "node scripts/autobackup.mjs",
     "postinstall": "node scripts/postinstall.mjs",
-    "fonts": "node scripts/install-fonts.mjs"
+    "fonts": "node scripts/install-fonts.mjs",
+    "test": "vitest run --config vitest.config.js",
+    "test:layout": "vitest run --config vitest.layout.config.js"
   },
   "dependencies": {
     "hono": "^4.6.0"
@@ -24,7 +26,9 @@
     "@cloudflare/workers-types": "^5.20261001.1",
     "node-html-parser": "^9.0.4",
     "pagedjs": "^0.4.3",
+    "puppeteer-core": "^25.12.0",
     "typescript": "^5.6.0",
+    "vitest": "^5.0.3",
     "wrangler": "^4.0.0"
   }
 }

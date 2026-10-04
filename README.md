@@ -27,7 +27,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 | --- | --- |
 | [docs/RUNNING.md](docs/RUNNING.md) | Install, start/stop, where your data lives, backup and restore, troubleshooting |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy to Cloudflare, protect it with a login, move your data, update later |
-| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, adding a document type, changing the data shape, conventions |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, **tests**, adding a document type, changing the data shape, conventions |
 | [docs/PUBLISHING.md](docs/PUBLISHING.md) | **This repository is public**: what must never be committed, the publish guard, new-computer setup |
 | [CLAUDE.md](CLAUDE.md) | Short project guide for AI coding sessions |
 
@@ -44,6 +44,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Settings** (`/settings.html`): hourly rate, offer validity, default language
 - **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
 - **Backup**: `npm run backup`, optional hourly automatic backups, `npm run restore`
+- **Tests**: `npm test` (60 unit tests) and `npm run test:layout` (print layout in headless Chrome)
 
 ## Project layout
 
@@ -53,7 +54,8 @@ src/doctypes/offer/  the offer document type (schema, render, cost text, labels,
 src/routes/          API: documents, clients, images, snippets, settings
 public/              the app UI (landing, editor, snippets, settings), house.css, fonts, seal, Paged.js, diff.js
 migrations/          D1 database schema (applied in order)
-scripts/             import offers, seed snippets, backup, copy images, extract assets
+scripts/             import offers, seed snippets, backup/restore, fonts, git guard, copy images, extract assets
+tests/               unit tests and print-layout tests (invented data only)
 docs/                the guides above
 ```
 

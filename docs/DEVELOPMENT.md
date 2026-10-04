@@ -12,8 +12,7 @@ For running the app see [RUNNING.md](RUNNING.md); for hosting see [DEPLOY.md](DE
 | [Paged.js](https://pagedjs.org) | splits the HTML into A4 pages in the browser, repeats header/footer, numbers pages | `public/paged.polyfill.js` (copied from the npm package) |
 | Plain HTML + JS | the app UI in `public/` | no build step; edit and reload |
 
-TypeScript is checked with `npm run typecheck`. There is no test suite yet; the diff engine can be exercised in Node
-(it is a plain script with a `module.exports`), and the rest is verified in the browser.
+TypeScript is checked with `npm run typecheck`. Tests are described in [Tests](#tests) below.
 
 ## How a document is rendered
 
@@ -34,6 +33,40 @@ The cost summary and the signatures are wrapped in `<section class="final-page">
 
 Styling for the printed documents is `public/house.css` (the studio's design, lifted from the original hand-built
 offers). The app's own UI uses `public/app.css` and `public/editor.css`.
+
+## Tests
+
+Two suites, both using [Vitest](https://vitest.dev). All test data is **invented** (the repository is public, never use real jobs).
+
+| Command | What it covers | Speed |
+| --- | --- | --- |
+| `npm test` | 60 unit tests, no browser: number/date/CHF formatting, the cost paragraph (hours, CHF, optional treatments, DE/EN), schema migrations, the History diff, offer rendering (final page, localized headings, table structure, photo layout, HTML escaping), backup retention, image sizes, the publish guard (against throwaway git repos) and public-repo hygiene | about 10 s |
+| `npm run test:layout` | **Print layout** with the real page-layout engine (Paged.js) in headless Chrome: 40 realistic, 16 demanding and 30 text-heavy invented offers, plus special cases (almost empty, one row, trailing/mid page breaks, English). Needs Google Chrome (or `CHROME_PATH`) and `npm install` (copies Paged.js into `public/`). Studio fonts are optional but make the results match real documents (`npm run fonts`) | about 2 minutes |
+
+The layout suite checks every printed page for these defects: blank page, content running past the page, a row photo
+hanging out of its row, a heading alone at the bottom of a page, the *Total* line alone at the top of a page, a table
+row split across two pages, table columns that differ between pieces of the same table, a cut signature block, and the
+**final-page rule** (cost summary and both signature rows together on the last page, nowhere else). It also fails when
+pages in the middle are mostly empty for realistic content. Each variant uses different text lengths so that page
+breaks fall in many different places; a bug that only appears when a heading lands at the very bottom is found by
+sheer variety, not luck.
+
+When you change layout code (`public/house.css`, `src/core/render/**`, `src/doctypes/*/render.ts`) run `npm run test:layout`.
+When you fix a layout bug, first add a variant or a check that fails because of it, then fix it. To *see* a page:
+
+```js
+// inside any layout test: also writes page-1.png, page-2.png, … to the folder
+await h.render(makeOffer({ seed: 11, rows: 15 }), 'de', { screenshotDir: '/tmp/pages' });
+```
+
+Known limitations, deliberately not asserted: Paged.js cannot repeat a table's header row on continuation pages
+(`it.todo` in `tests/layout/layout.test.js`), and a single treatment row taller than about a third of a page leaves a white
+gap, because rows are never split across pages. A few lines of content can end up alone on the page before the final page.
+
+How the table is built to satisfy these rules: the treatment table is written as up to three pieces that look like one
+table, `[heading + header + first row]`, `[middle rows]`, `[last row + total line]`, because Paged.js honours
+`break-inside: avoid` on a wrapper but cannot "keep with next" across table rows. Column widths are set on the cells
+(not only a `<colgroup>`), because Paged.js drops the `colgroup` when it splits a table.
 
 ## Code map
 
