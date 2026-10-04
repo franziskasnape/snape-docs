@@ -2,7 +2,7 @@ import type { ImageRef } from '../../core/types';
 import type { MeasuresBlock } from '../../core/render/blocks/measures';
 
 export type OfferBlock =
-  | { type: 'prose'; heading?: string; paragraphs: string[] }
+  | { type: 'prose'; heading?: string; headingKey?: 'artist' | 'condition'; paragraphs: string[] }
   | { type: 'note'; label: 'hinweis' | 'fazit' | 'empfehlung'; html: string }
   | MeasuresBlock
   | { type: 'pagebreak' };

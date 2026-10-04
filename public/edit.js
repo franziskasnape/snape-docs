@@ -21,7 +21,10 @@ function set(p, v) {
 }
 
 // ---- labels ----
-const NOTE_LABELS = { hinweis: 'Hinweis / Note', fazit: 'Fazit / Conclusion', empfehlung: 'Empfehlung / Recommendation' };
+// The editor UI is always English; German/English only appears in the generated document.
+const NOTE_LABELS = { hinweis: 'Note', fazit: 'Conclusion', empfehlung: 'Recommendation' };
+const SECTION_UI = { artist: 'Artist & work', condition: 'Condition assessment' };
+// What each standard section prints as, per document language (shown as a hint only; the real text comes from the server)
 const SECTIONS = { artist: { de: 'Zum Künstler und Werk', en: 'About the Artist and Work' }, condition: { de: 'Zustandsbeurteilung', en: 'Condition Assessment' } };
 const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', pagebreak: 'Page break' };
 
@@ -50,7 +53,9 @@ function blockHtml(b, i, n) {
   const p = `data.blocks.${i}`;
   let body = '';
   if (b.type === 'prose') {
-    body = input(`${p}.heading`, 'Heading (optional)') + b.paragraphs.map((_, k) => `<div class="para">${area(`${p}.paragraphs.${k}`, `Paragraph ${k + 1}`, 4)}${btn('del', `data-arr="${p}.paragraphs" data-i="${k}"`, 'remove paragraph', 'mini danger')}</div>`).join('')
+    body = (b.headingKey
+      ? `<p class="hint"><b>${SECTION_UI[b.headingKey]}</b> — printed as “${SECTIONS[b.headingKey][doc.lang]}” ${btn('custom-heading', `data-path="${p}"`, 'Custom heading')}</p>`
+      : input(`${p}.heading`, 'Heading (optional)')) + b.paragraphs.map((_, k) => `<div class="para">${area(`${p}.paragraphs.${k}`, `Paragraph ${k + 1}`, 4)}${btn('del', `data-arr="${p}.paragraphs" data-i="${k}"`, 'remove paragraph', 'mini danger')}</div>`).join('')
       + btn('add-para', `data-arr="${p}.paragraphs"`, '+ Paragraph');
   } else if (b.type === 'note') {
     body = `<label class="field">Label<select data-path="${p}.label">${Object.entries(NOTE_LABELS).map(([k, v]) => `<option value="${k}" ${b.label === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` + area(`${p}.html`, 'Text', 4);
@@ -60,7 +65,7 @@ function blockHtml(b, i, n) {
   } else if (b.type === 'pagebreak') {
     body = '<p class="hint">Content after this block starts on a new page.</p>';
   }
-  return `<div class="block"><div class="block-head"><span class="type">${BLOCK_NAMES[b.type]}${b.type === 'measures' ? ` — ${b.kind}` : ''}</span>${mover('data.blocks', i, n)}</div>${body}</div>`;
+  return `<div class="block"><div class="block-head"><span class="type">${b.type === 'prose' ? `Text section — ${b.headingKey ? SECTION_UI[b.headingKey] : esc(b.heading || 'untitled')}` : BLOCK_NAMES[b.type]}${b.type === 'measures' ? ` — ${b.kind}` : ''}</span>${mover('data.blocks', i, n)}</div>${body}</div>`;
 }
 
 function formHtml() {
@@ -92,7 +97,7 @@ function formHtml() {
 
   <fieldset><legend>Content</legend>
     ${d.blocks.map((b, i) => blockHtml(b, i, d.blocks.length)).join('')}
-    <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTIONS.artist[doc.lang]}`)}${btn('add-section', 'data-section="condition"', `+ ${SECTIONS.condition[doc.lang]}`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
+    <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTION_UI.artist} section`)}${btn('add-section', 'data-section="condition"', `+ ${SECTION_UI.condition} section`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
   </fieldset>
 
   <fieldset><legend>Cost summary</legend>
@@ -221,7 +226,8 @@ $('#form').addEventListener('click', (e) => {
   else if (act === 'add-kv') { doc.artwork.push({ k: '', v: '' }); }
   else if (act === 'add-para') { get(arr).push(''); }
   else if (act === 'add-row') { get(`${path}.rows`).push({ title: '', desc: '', hoursMin: 1 }); }
-  else if (act === 'add-section') { insertBeforeTable({ type: 'prose', heading: SECTIONS[section][doc.lang], paragraphs: [''] }); }
+  else if (act === 'add-section') { insertBeforeTable({ type: 'prose', headingKey: section, paragraphs: [''] }); }
+  else if (act === 'custom-heading') { const blk = get(path); blk.heading = SECTIONS[blk.headingKey][doc.lang]; delete blk.headingKey; }
   else if (act === 'add-block') {
     const blk = { prose: { type: 'prose', paragraphs: [''] }, note: { type: 'note', label: 'hinweis', html: '' },
       measures: { type: 'measures', kind, rows: [{ title: '', desc: '', hoursMin: 1 }] }, pagebreak: { type: 'pagebreak' } }[type];
@@ -230,9 +236,9 @@ $('#form').addEventListener('click', (e) => {
   }
   else if (act === 'del-overview') { delete doc.data.overview; }
   else if (act === 'lib-row') { return openLibrary('measure', (v) => { get(`${path}.rows`).push({ title: v.title, desc: v.desc ?? '', hoursMin: v.hoursMin ?? 1, ...(v.hoursMax != null ? { hoursMax: v.hoursMax } : {}) }); dirty({ structural: true }); }); }
-  else if (act === 'lib-artist') { return openLibrary('artist', (v) => { const sec = doc.data.blocks.find((b) => b.type === 'prose' && b.heading === SECTIONS.artist[doc.lang]);
+  else if (act === 'lib-artist') { return openLibrary('artist', (v) => { const sec = doc.data.blocks.find((b) => b.type === 'prose' && b.headingKey === 'artist');
     if (sec) { if (sec.paragraphs.every((p) => !p.trim())) sec.paragraphs = [v.text]; else sec.paragraphs.unshift(v.text); }
-    else insertBeforeTable({ type: 'prose', heading: SECTIONS.artist[doc.lang], paragraphs: [v.text] });
+    else insertBeforeTable({ type: 'prose', headingKey: 'artist', paragraphs: [v.text] });
     dirty({ structural: true }); }); }
   else if (act === 'snip-save') { return saveRowToLibrary(get(path)); }
   dirty({ structural: true });

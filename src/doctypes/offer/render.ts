@@ -24,7 +24,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
 
   const blocks = d.blocks.map((b) => {
     switch (b.type) {
-      case 'prose': return prose(b.heading, b.paragraphs);
+      case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs);
       case 'note': return note(L.notes[b.label], b.html);
       case 'pagebreak': return pageBreak();
       case 'measures': return measures(ctx, b, {
@@ -65,11 +65,11 @@ export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
   statuses: ['draft', 'sent', 'accepted', 'declined'],
-  defaultData: (lang, settings, today) => ({
+  defaultData: (_lang, settings, today) => ({
     meta: { date: today, validUntil: addDays(today, settings.validityDays) },
     blocks: [
-      { type: 'prose', heading: offerLabels[lang].sections.artist, paragraphs: [''] },
-      { type: 'prose', heading: offerLabels[lang].sections.condition, paragraphs: [''] },
+      { type: 'prose', headingKey: 'artist', paragraphs: [''] },
+      { type: 'prose', headingKey: 'condition', paragraphs: [''] },
       { type: 'measures', kind: 'main', rows: [] },
     ],
     cost: { materials: true },
