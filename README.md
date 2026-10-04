@@ -16,7 +16,8 @@ Cloudflare later without a rewrite.
 Working:
 - Local app on Cloudflare Workers + Hono + D1 (SQLite) + R2; generic schema for all document types
 - **Landing page** (`/`): list, search, filter, new offer (DE/EN, client), duplicate, delete
-- **Editor** (`/edit.html?id=…`): form + live Paged.js preview, autosave, status, version snapshots,
+- **Editor** (`/edit.html?id=…`): form + live Paged.js preview, autosave, status, version history
+  (named snapshots, automatic checkpoints, status changes; History panel shows what a restore would change),
   photo upload (resized to max 1600 px JPEG in the browser; originals stay in Google Drive)
 - **Offer document type**: object/client info, text sections, notes, treatment tables with computed
   hour totals, optional treatments, calculated cost paragraph (DE/EN) with toggles, signatures
@@ -26,7 +27,7 @@ Working:
 - **Backup**: `npm run backup` (database dump + images, outside the repo)
 - Existing offers ANG-2026-002/003/004 imported
 
-Ideas / next: version restore UI, orphaned-image cleanup, one-click PDF via Cloudflare Browser Rendering,
+Ideas / next: orphaned-image cleanup, one-click PDF via Cloudflare Browser Rendering,
 invoice (with Swiss QR bill) and treatment-report document types, deploy to Cloudflare (+ Access for login).
 
 ## Run

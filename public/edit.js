@@ -272,6 +272,76 @@ function insertBeforeTable(block) {
   bl.splice(at < 0 ? bl.length : at, 0, block);
 }
 
+// ---- version history ----
+const histDlg = $('#histDlg');
+const FRIENDLY = { hoursMin: 'hours (min)', hoursMax: 'hours (max)', desc: 'description', html: 'text', k: 'label', v: 'value', validUntil: 'valid until', deliveryFrom: 'delivery from', pickupFrom: 'pickup from', optionalDetail: 'optional detail', overrideHtml: 'manual cost text', materials: 'materials billed separately' };
+
+function flatten(o, prefix = '', out = {}) {
+  if (o !== null && typeof o === 'object') for (const k of Object.keys(o)) flatten(o[k], prefix ? `${prefix}.${k}` : k, out);
+  else out[prefix] = o;
+  return out;
+}
+function describePath(path, a, b) {
+  const ks = path.split('.'), out = [];
+  const src = (get2) => get2(a) ?? get2(b);
+  if (ks[0] === 'data' && ks[1] === 'blocks') {
+    const blk = src((d) => d.data?.blocks?.[ks[2]]);
+    const name = blk ? (blk.type === 'measures' ? `Treatment table (${blk.kind})` : blk.type === 'prose' ? `Text section${blk.headingKey ? ' – ' + SECTION_UI[blk.headingKey] : blk.heading ? ' – ' + blk.heading : ''}` : BLOCK_NAMES[blk.type] ?? blk.type) : `Block ${+ks[2] + 1}`;
+    out.push(`${+ks[2] + 1}. ${name}`);
+    let rest = ks.slice(3);
+    if (rest[0] === 'rows') { out.push(`row ${+rest[1] + 1}`); rest = rest.slice(2); }
+    if (rest[0] === 'paragraphs') { out.push(`paragraph ${+rest[1] + 1}`); rest = rest.slice(2); }
+    if (rest[0] === 'images') { out.push(`photo ${+rest[1] + 1}`); rest = rest.slice(2); }
+    if (rest.length) out.push(rest.map((k) => FRIENDLY[k] ?? k).join(' '));
+  } else if (ks[0] === 'artwork') out.push('Object', `line ${+ks[1] + 1}`, FRIENDLY[ks[2]] ?? ks[2]);
+  else if (ks[0] === 'data') out.push(ks.slice(1).map((k) => FRIENDLY[k] ?? k).join(' › '));
+  else out.push(ks.join(' › '));
+  return out.join(' › ');
+}
+const short = (v) => (v === undefined ? '' : String(v).replace(/\s+/g, ' ').slice(0, 80) + (String(v).length > 80 ? '…' : ''));
+
+/** What restoring `snap` would change relative to the current editor state. */
+function diffAgainstCurrent(snap) {
+  const cur = { title: doc.title, status: doc.status, artwork: doc.artwork, data: doc.data };
+  const old = { title: snap.title ?? doc.title, status: snap.status ?? doc.status, artwork: snap.artwork ?? doc.artwork, data: snap.data };
+  const A = flatten(cur), B = flatten(old), rows = [];
+  for (const p of new Set([...Object.keys(A), ...Object.keys(B)])) {
+    if (A[p] === B[p]) continue;
+    rows.push(`<li><span class="where">${esc(describePath(p, cur, old))}</span>${A[p] === undefined ? '<ins>(added)</ins>' : `<del>${esc(short(A[p]))}</del>`} → ${B[p] === undefined ? '<del>(removed)</del>' : `<ins>${esc(short(B[p]))}</ins>`}</li>`);
+  }
+  return rows;
+}
+
+// timestamps are stored in UTC; show them in the viewer's local time
+const when = (t) => new Date(t.replace(' ', 'T') + 'Z').toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+const KIND_LABEL = { manual: 'saved', auto: 'auto', status: 'status', restore: 'restore' };
+async function openHistory() {
+  await save();                                   // make sure the stored state is what's on screen
+  const list = await api(`/api/documents/${id}/versions`);
+  $('#histList').innerHTML = list.length ? list.map((v) => `<button type="button" class="hist-item" data-vid="${v.id}">
+      <span class="kind ${v.kind}">${KIND_LABEL[v.kind] ?? v.kind}</span>${esc(when(v.created_at))}<small>${esc(v.note ?? '')}</small></button>`).join('') : '<p class="muted">No versions yet. Press “Save version” to create the first one.</p>';
+  $('#histDetail').innerHTML = '<p class="muted">Select a version to see what restoring it would change.</p>';
+  histDlg.showModal();
+}
+$('#histList').addEventListener('click', async (e) => {
+  const b = e.target.closest('.hist-item'); if (!b) return;
+  document.querySelectorAll('.hist-item').forEach((x) => x.classList.toggle('on', x === b));
+  const v = await api(`/api/documents/${id}/versions/${b.dataset.vid}`);
+  const rows = diffAgainstCurrent(v.snapshot);
+  $('#histDetail').innerHTML = `<h3 style="margin:0 0 4px">${esc(when(v.createdAt))} ${v.note ? '— ' + esc(v.note) : ''}</h3>
+    ${rows.length ? `<p class="hint">Restoring this version would change ${rows.length} thing${rows.length > 1 ? 's' : ''} (current → version). Moved or deleted blocks can show up as several changes.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
+      : '<p class="hint">Identical to the current state.</p>'}
+    <button type="button" class="primary" id="restoreBtn" ${rows.length ? '' : 'disabled'}>Restore this version</button>
+    <span class="hint"> Your current state is saved as a version first, so you can undo a restore.</span>`;
+  $('#restoreBtn').onclick = async () => {
+    if (!confirm('Restore this version? The current state will be saved to the history first.')) return;
+    await api(`/api/documents/${id}/versions/${b.dataset.vid}/restore`, 'POST');
+    location.reload();
+  };
+});
+$('#historyBtn').addEventListener('click', openHistory);
+$('#histClose').addEventListener('click', () => histDlg.close());
+
 // ---- snippet library ----
 const slug = (t) => t.toLowerCase().replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 const libDlg = $('#libDlg');

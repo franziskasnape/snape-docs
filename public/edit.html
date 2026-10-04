@@ -14,6 +14,7 @@
     <select id="status"></select></div>
   <div class="head-actions">
     <span id="saveState" class="muted">Loaded</span>
+    <button id="historyBtn" title="Browse and restore earlier versions">History</button>
     <button id="versionBtn" title="Save a named snapshot">Save version</button>
     <a id="htmlLink" class="btn" title="Single self-contained file">Download HTML</a>
     <a id="printLink" target="_blank" class="btn primary">Print / PDF</a>
@@ -31,6 +32,15 @@
   <input id="libSearch" type="search" placeholder="Search…" style="width:100%;margin-bottom:10px">
   <div id="libList"></div>
   <div class="actions"><button type="button" id="libClose" class="ghost">Close</button></div>
+</dialog>
+<dialog id="histDlg">
+  <h2>History</h2>
+  <p class="hint">Snapshots are taken when you press “Save version”, when the status changes, before a restore, and automatically about every 30 minutes of editing.</p>
+  <div class="hist">
+    <div id="histList" class="hist-list"></div>
+    <div id="histDetail" class="hist-detail"><p class="muted">Select a version to see what restoring it would change.</p></div>
+  </div>
+  <div class="actions"><button type="button" id="histClose" class="ghost">Close</button></div>
 </dialog>
 <script src="/edit.js"></script>
 </body>

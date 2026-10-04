@@ -5,6 +5,20 @@ import type { Lang } from '../core/types';
 
 export const documents = new Hono<{ Bindings: Env }>();
 
+const AUTO_EVERY_MIN = 30;   // at most one automatic checkpoint per half hour of editing
+const AUTO_KEEP = 40;        // oldest automatic checkpoints are pruned; manual/status/restore versions are kept
+
+/** Full restorable state of a document: everything the editor can change. */
+async function snapshotOf(env: Env, doc: NonNullable<Awaited<ReturnType<typeof getDocument>>>) {
+  const art = doc.artwork_id ? await env.DB.prepare('SELECT fields FROM artworks WHERE id = ?').bind(doc.artwork_id).first<{ fields: string }>() : null;
+  return JSON.stringify({ title: doc.title, status: doc.status, clientId: doc.client_id, artwork: art ? JSON.parse(art.fields) : [], data: JSON.parse(doc.data) });
+}
+
+async function saveVersion(env: Env, doc: NonNullable<Awaited<ReturnType<typeof getDocument>>>, kind: string, note?: string | null) {
+  await env.DB.prepare('INSERT INTO document_versions (document_id, data, note, kind) VALUES (?,?,?,?)').bind(doc.id, await snapshotOf(env, doc), note || null, kind).run();
+  if (kind === 'auto') await env.DB.prepare(`DELETE FROM document_versions WHERE document_id = ? AND kind = 'auto' AND id NOT IN (SELECT id FROM document_versions WHERE document_id = ? AND kind = 'auto' ORDER BY id DESC LIMIT ?)`).bind(doc.id, doc.id, AUTO_KEEP).run();
+}
+
 // List (optionally filtered by type)
 documents.get('/', async (c) => {
   const type = c.req.query('type');
@@ -71,6 +85,13 @@ documents.put('/:id', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(doc.type);
   if (b.status && !dt.statuses.includes(b.status)) return c.json({ error: 'invalid status' }, 400);
+  // keep history: snapshot the state *before* this save on status changes, and as a periodic checkpoint
+  if (b.status && b.status !== doc.status) await saveVersion(c.env, doc, 'status', `Status: ${doc.status} → ${b.status}`);
+  else {
+    const last = await c.env.DB.prepare('SELECT created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC LIMIT 1').bind(id).first<{ created_at: string }>();
+    const ageMin = last ? (Date.now() - new Date(last.created_at.replace(' ', 'T') + 'Z').getTime()) / 60000 : Infinity;
+    if (ageMin > AUTO_EVERY_MIN && b.data && JSON.stringify(b.data) !== doc.data) await saveVersion(c.env, doc, 'auto');
+  }
   await c.env.DB.prepare(
     `UPDATE documents SET title = ?, status = ?, lang = ?, client_id = ?, data = ?, updated_at = datetime('now') WHERE id = ?`
   ).bind(b.title ?? doc.title, b.status ?? doc.status, b.lang ?? doc.lang, b.clientId === undefined ? doc.client_id : b.clientId,
@@ -104,25 +125,38 @@ documents.post('/cost-text', async (c) => {
   return c.json({ html: dt.costText?.(b.data, b.lang) ?? '' });
 });
 
-// Version snapshots (the user's "Save version" button; also useful before big edits)
+// ---- Version history ----
 documents.post('/:id/versions', async (c) => {
-  const id = Number(c.req.param('id'));
-  const doc = await getDocument(c.env, id);
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
   if (!doc) return c.json({ error: 'not found' }, 404);
   const { note } = await c.req.json<{ note?: string }>().catch(() => ({ note: undefined }));
-  await c.env.DB.prepare('INSERT INTO document_versions (document_id, data, note) VALUES (?,?,?)').bind(id, doc.data, note || null).run();
+  await saveVersion(c.env, doc, 'manual', note);
   return c.json({ ok: true }, 201);
 });
 
 documents.get('/:id/versions', async (c) => {
-  const { results } = await c.env.DB.prepare('SELECT id, note, created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC').bind(Number(c.req.param('id'))).all();
+  const { results } = await c.env.DB.prepare('SELECT id, note, kind, created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC').bind(Number(c.req.param('id'))).all();
   return c.json(results);
 });
 
+// One version, normalised to {title,status,clientId,artwork,data} (older rows only stored `data`)
+documents.get('/:id/versions/:vid', async (c) => {
+  const v = await c.env.DB.prepare('SELECT id, note, kind, created_at, data FROM document_versions WHERE id = ? AND document_id = ?').bind(Number(c.req.param('vid')), Number(c.req.param('id'))).first<any>();
+  if (!v) return c.json({ error: 'not found' }, 404);
+  const raw = JSON.parse(v.data);
+  return c.json({ id: v.id, note: v.note, kind: v.kind, createdAt: v.created_at, snapshot: raw.data ? raw : { data: raw } });
+});
+
+// Restore: the current state is saved first, so a restore can itself be undone
 documents.post('/:id/versions/:vid/restore', async (c) => {
   const id = Number(c.req.param('id'));
-  const v = await c.env.DB.prepare('SELECT data FROM document_versions WHERE id = ? AND document_id = ?').bind(Number(c.req.param('vid')), id).first<{ data: string }>();
-  if (!v) return c.json({ error: 'not found' }, 404);
-  await c.env.DB.prepare("UPDATE documents SET data = ?, updated_at = datetime('now') WHERE id = ?").bind(v.data, id).run();
+  const doc = await getDocument(c.env, id);
+  const v = await c.env.DB.prepare('SELECT data, created_at FROM document_versions WHERE id = ? AND document_id = ?').bind(Number(c.req.param('vid')), id).first<{ data: string; created_at: string }>();
+  if (!doc || !v) return c.json({ error: 'not found' }, 404);
+  const raw = JSON.parse(v.data), snap = raw.data ? raw : { data: raw };
+  await saveVersion(c.env, doc, 'restore', 'Saved automatically before a restore');
+  await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, status = ?, client_id = ?, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(snap.data), snap.title === undefined ? doc.title : snap.title, snap.status ?? doc.status, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();
+  if (snap.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(snap.artwork), doc.artwork_id).run();
   return c.json({ ok: true });
 });

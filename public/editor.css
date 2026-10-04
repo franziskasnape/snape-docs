@@ -50,3 +50,18 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 .lib-item small { display:block; color:var(--muted); }
 .lib-item[disabled] { opacity:.5; cursor:not-allowed; }
 .lib-item .rv { color:var(--danger); font-size:11px; margin-left:6px; }
+
+#histDlg { width:min(900px, 96vw); }
+.hist { display:grid; grid-template-columns:260px 1fr; gap:14px; min-height:300px; max-height:60vh; }
+.hist-list { overflow:auto; border-right:1px solid var(--line); padding-right:10px; }
+.hist-item { display:block; width:100%; text-align:left; margin-bottom:6px; padding:7px 9px; }
+.hist-item.on { border-color:var(--ink); background:#f1ebdf; }
+.hist-item small { display:block; color:var(--muted); }
+.kind { font-size:10px; letter-spacing:.8px; text-transform:uppercase; font-weight:700; padding:1px 6px; border-radius:8px; background:#eee8dd; color:var(--muted); margin-right:6px; }
+.kind.manual { background:#e1e9f2; color:#35597f; } .kind.restore { background:#f2dfdb; color:var(--danger); } .kind.status { background:#e0eddc; color:#3d6b34; }
+.hist-detail { overflow:auto; }
+.diff { margin:0 0 12px; padding:0; list-style:none; font-size:13px; }
+.diff li { padding:5px 0; border-bottom:1px solid var(--line); }
+.diff .where { color:var(--muted); font-size:11px; display:block; }
+.diff del { background:#f6dedb; text-decoration:none; padding:0 3px; border-radius:3px; }
+.diff ins { background:#dcebd6; text-decoration:none; padding:0 3px; border-radius:3px; }
