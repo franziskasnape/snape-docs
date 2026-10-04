@@ -1,81 +1,61 @@
 # snape-docs
 
-Document generator for Snape Art Conservation.
+Document generator for **Snape Art Conservation**. Create client documents in the studio's house design,
+keep them as editable sessions in a SQLite database, and export them as PDFs.
 
-## Goal
-A local web tool to create client documents in the house design, keep them as editable
-"sessions" in SQLite, and export them as PDFs. **Offers (Angebote) come first**; invoices
-(with Swiss QR bill), treatment reports and other documentation will follow as new document
-types. Every document can be produced in German or English, with a bilingual library of
-reusable text snippets (measure rows, artist bios).
+**Offers (Angebote) are built.** Invoices (with Swiss QR bill), treatment reports and other documents will follow
+as new document types. Every document can be written in **German or English**.
 
-It runs locally now and is built on Cloudflare Workers + D1 + R2, so it can be deployed to
-Cloudflare later without a rewrite.
+It runs locally today on Cloudflare's Workers runtime (`wrangler dev`) and can be deployed to Cloudflare later
+without a rewrite (D1 = SQLite, R2 = image storage).
 
-## Status
-Working:
-- Local app on Cloudflare Workers + Hono + D1 (SQLite) + R2; generic schema for all document types
-- **Landing page** (`/`): list, search, filter, new offer (DE/EN, client), duplicate, delete
-- **Editor** (`/edit.html?id=…`): form + live Paged.js preview, autosave, status, version history
-  (named snapshots, automatic checkpoints, status changes; the History panel lists what a restore would
-  change and can show the current document and an old version side by side),
-  photo upload (resized to max 1600 px JPEG in the browser; originals stay in Google Drive)
-- **Offer document type**: object/client info, text sections, notes, treatment tables with computed
-  hour totals, optional treatments, calculated cost paragraph (DE/EN) with toggles, signatures
-- **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, insert from the editor
+## Quick start
+
+```bash
+cd ~/git/projects/snape-docs
+npm install              # first time only
+npm run db:migrate       # first time only: creates the local database
+npm run dev              # starts the app at http://localhost:8787
+```
+
+Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal where it runs.
+
+## Documentation
+
+| Guide | What's in it |
+| --- | --- |
+| [docs/RUNNING.md](docs/RUNNING.md) | Install, start/stop, where your data lives, backup and restore, troubleshooting |
+| [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy to Cloudflare, protect it with a login, move your data, update later |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, adding a document type, changing the data shape, conventions |
+| [CLAUDE.md](CLAUDE.md) | Short project guide for AI coding sessions |
+
+## What it does
+
+- **Landing page** (`/`): list, search and filter documents; new offer (DE/EN, client); duplicate; delete
+- **Editor** (`/edit.html?id=…`): form with live A4 preview, autosave, status, photo upload
+  (resized in the browser to max 1600 px JPEG; originals stay in Google Drive)
+- **Offer type**: object and client info, text sections, notes, treatment tables with calculated hour totals,
+  optional treatments, calculated cost paragraph (DE/EN), signatures, portrait/landscape overview photo
+- **Version history**: named snapshots, automatic checkpoints every 10 minutes of editing, status changes;
+  a History panel with a change list, side-by-side preview and safe restore
+- **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, inserted from the editor
 - **Settings** (`/settings.html`): hourly rate, offer validity, default language
-- **Export**: `Print / PDF` (browser Save as PDF, correct filename) and `Download HTML` (single file)
-- **Backup**: `npm run backup` (database dump + images, outside the repo)
-- Existing offers ANG-2026-002/003/004 imported
+- **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
+- **Backup**: `npm run backup`
 
-Ideas / next: orphaned-image cleanup, one-click PDF via Cloudflare Browser Rendering,
-invoice (with Swiss QR bill) and treatment-report document types, deploy to Cloudflare (+ Access for login).
+## Project layout
 
-## Run
 ```
-npm install
-npm run db:migrate          # creates the local SQLite database
-npm run dev                 # http://localhost:8787
-```
-Starter snippet library (German + English drafts, marked "needs review"), with the app running:
-```
-npm run seed:snippets
-```
-Import existing hand-built offers (needs the original HTML files; client data is not in git):
-```
-node scripts/import-offers.mjs <offer.html>...
-node scripts/load-seed.mjs
-```
-Back up (database + images) to `~/git/projects/snape-docs-backups/<timestamp>`:
-```
-npm run backup
+src/core/            shared: types, formatting, i18n, migrations, page frame, reusable render blocks
+src/doctypes/offer/  the offer document type (schema, render, cost text, labels, migrations)
+src/routes/          API: documents, clients, images, snippets, settings
+public/              the app UI (landing, editor, snippets, settings), house.css, fonts, seal, Paged.js, diff.js
+migrations/          D1 database schema (applied in order)
+scripts/             import offers, seed snippets, backup, copy images, extract assets
+docs/                the guides above
 ```
 
-## Layout
-```
-src/core/            shared: types, formatting, i18n, page frame, reusable render blocks
-src/doctypes/offer/  the offer document type (schema, render, cost text, labels)
-public/              house.css, fonts, seal, Paged.js (served as static assets)
-migrations/          D1 schema
-scripts/             asset extraction, offer import, snippet seed, backup
-src/routes/          documents, clients, images, snippets, settings API
-```
-Client data lives in `.wrangler/` and `seed/` (both git-ignored). Back them up separately.
+## Privacy
 
-## Changing the shape of document data
-Document data carries a schema version (`data.v`, missing = 1). Adding an **optional** field needs nothing:
-old documents and snapshots simply lack it and the code falls back to a default. For anything else
-(rename, move, restructure) add a migration to the doc type, e.g. `src/doctypes/offer/migrations.ts`:
-
-1. Append a function to the `migrations` array (index i upgrades version i+1 → i+2) and bump `schemaVersion`.
-2. Make `defaultData` produce the new shape (and set `v`).
-
-Documents are upgraded when loaded (display, print, diff, restore) and the upgrade is stored the first time
-a document is opened. **History snapshots are never rewritten**; they are upgraded on read, so old versions
-can still be compared and restored. Blocks, treatment rows and photos carry stable `id`s, which is what lets
-the History panel (`public/diff.js`) tell "moved" from "edited" from "deleted".
-
-## Adding a new document type
-Create `src/doctypes/<type>/` with a schema, a render function composing `core/render/frame`
-and the shared blocks, and its own labels; register it with an id and number prefix
-(offer = `ANG`). The database tables are generic (`documents.type`, JSON `data`).
+Client data (names, addresses, photos) lives in `.wrangler/` and `seed/`, both **git-ignored**. Backups are written
+outside the repository. The repository itself contains no client data.
