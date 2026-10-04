@@ -5,8 +5,8 @@ import type { Lang } from '../core/types';
 
 export const documents = new Hono<{ Bindings: Env }>();
 
-const AUTO_EVERY_MIN = 30;   // at most one automatic checkpoint per half hour of editing
-const AUTO_KEEP = 40;        // oldest automatic checkpoints are pruned; manual/status/restore versions are kept
+const AUTO_EVERY_MIN = 10;   // at most one automatic checkpoint per 10 minutes of editing
+const AUTO_KEEP = 100;       // oldest automatic checkpoints are pruned; manual/status/restore versions are kept
 
 /** Full restorable state of a document: everything the editor can change. */
 async function snapshotOf(env: Env, doc: NonNullable<Awaited<ReturnType<typeof getDocument>>>) {
