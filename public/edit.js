@@ -22,6 +22,7 @@ function set(p, v) {
 
 // ---- labels ----
 const NOTE_LABELS = { hinweis: 'Hinweis / Note', fazit: 'Fazit / Conclusion', empfehlung: 'Empfehlung / Recommendation' };
+const SECTIONS = { artist: { de: 'Zum Künstler und Werk', en: 'About the Artist and Work' }, condition: { de: 'Zustandsbeurteilung', en: 'Condition Assessment' } };
 const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', pagebreak: 'Page break' };
 
 // ---- form builders ----
@@ -91,7 +92,7 @@ function formHtml() {
 
   <fieldset><legend>Content</legend>
     ${d.blocks.map((b, i) => blockHtml(b, i, d.blocks.length)).join('')}
-    <div class="addbar">${btn('add-block', 'data-type="prose"', '+ Text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
+    <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTIONS.artist[doc.lang]}`)}${btn('add-section', 'data-section="condition"', `+ ${SECTIONS.condition[doc.lang]}`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
   </fieldset>
 
   <fieldset><legend>Cost summary</legend>
@@ -213,21 +214,26 @@ $('#form').addEventListener('change', async (e) => {
 
 $('#form').addEventListener('click', (e) => {
   const b = e.target.closest('[data-act]'); if (!b) return;
-  const { act, arr, i, dir, type, kind, path } = b.dataset;
+  const { act, arr, i, dir, type, kind, path, section } = b.dataset;
   const idx = Number(i);
   if (act === 'del') { get(arr).splice(idx, 1); }
   else if (act === 'move') { const a = get(arr), j = idx + Number(dir); if (j < 0 || j >= a.length) return; [a[idx], a[j]] = [a[j], a[idx]]; }
   else if (act === 'add-kv') { doc.artwork.push({ k: '', v: '' }); }
   else if (act === 'add-para') { get(arr).push(''); }
   else if (act === 'add-row') { get(`${path}.rows`).push({ title: '', desc: '', hoursMin: 1 }); }
+  else if (act === 'add-section') { insertBeforeTable({ type: 'prose', heading: SECTIONS[section][doc.lang], paragraphs: [''] }); }
   else if (act === 'add-block') {
     const blk = { prose: { type: 'prose', paragraphs: [''] }, note: { type: 'note', label: 'hinweis', html: '' },
       measures: { type: 'measures', kind, rows: [{ title: '', desc: '', hoursMin: 1 }] }, pagebreak: { type: 'pagebreak' } }[type];
-    doc.data.blocks.push(blk);
+    // text sections and notes belong ahead of the first treatment table; tables and page breaks go at the end
+    if (type === 'prose') insertBeforeTable(blk); else doc.data.blocks.push(blk);
   }
   else if (act === 'del-overview') { delete doc.data.overview; }
   else if (act === 'lib-row') { return openLibrary('measure', (v) => { get(`${path}.rows`).push({ title: v.title, desc: v.desc ?? '', hoursMin: v.hoursMin ?? 1, ...(v.hoursMax != null ? { hoursMax: v.hoursMax } : {}) }); dirty({ structural: true }); }); }
-  else if (act === 'lib-artist') { return openLibrary('artist', (v) => { doc.data.blocks.unshift({ type: 'prose', heading: doc.lang === 'de' ? 'Zum Künstler und Werk' : 'About the Artist and Work', paragraphs: [v.text] }); dirty({ structural: true }); }); }
+  else if (act === 'lib-artist') { return openLibrary('artist', (v) => { const sec = doc.data.blocks.find((b) => b.type === 'prose' && b.heading === SECTIONS.artist[doc.lang]);
+    if (sec) { if (sec.paragraphs.every((p) => !p.trim())) sec.paragraphs = [v.text]; else sec.paragraphs.unshift(v.text); }
+    else insertBeforeTable({ type: 'prose', heading: SECTIONS.artist[doc.lang], paragraphs: [v.text] });
+    dirty({ structural: true }); }); }
   else if (act === 'snip-save') { return saveRowToLibrary(get(path)); }
   dirty({ structural: true });
 });
@@ -252,6 +258,12 @@ async function uploadImage(file, maxEdge = 1600, quality = 0.82) {
   const r = await fetch(`/api/images?documentId=${id}&w=${w}&h=${h}`, { method: 'POST', headers: { 'content-type': 'image/jpeg' }, body: blob });
   if (!r.ok) throw new Error(await r.text());
   return (await r.json()).id;
+}
+
+// Text sections go before the first "proposed" treatment table (where Zustandsbeurteilung etc. belong)
+function insertBeforeTable(block) {
+  const bl = doc.data.blocks, at = bl.findIndex((b) => b.type === 'measures' && b.kind === 'main');
+  bl.splice(at < 0 ? bl.length : at, 0, block);
 }
 
 // ---- snippet library ----

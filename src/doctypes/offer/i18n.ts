@@ -9,6 +9,7 @@ export const offerLabels = {
     totalMain: 'Total Aufwand', totalOptional: 'Optional zusätzlich', hoursUnit: 'Std.',
     costHeading: 'Kostenaufstellung',
     notes: { hinweis: 'Hinweis:', fazit: 'Fazit:', empfehlung: 'Empfehlung:' },
+    sections: { artist: 'Zum Künstler und Werk', condition: 'Zustandsbeurteilung' },
   },
   en: {
     eyebrow: 'Offer', title: 'Cost Estimate for Conservation and Restoration',
@@ -18,6 +19,7 @@ export const offerLabels = {
     totalMain: 'Total effort', totalOptional: 'Optional additional', hoursUnit: 'hrs',
     costHeading: 'Cost Summary',
     notes: { hinweis: 'Note:', fazit: 'Conclusion:', empfehlung: 'Recommendation:' },
+    sections: { artist: 'About the Artist and Work', condition: 'Condition Assessment' },
   },
 } satisfies Record<Lang, unknown>;
 

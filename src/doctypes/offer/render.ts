@@ -65,9 +65,13 @@ export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
   statuses: ['draft', 'sent', 'accepted', 'declined'],
-  defaultData: (_lang, settings, today) => ({
+  defaultData: (lang, settings, today) => ({
     meta: { date: today, validUntil: addDays(today, settings.validityDays) },
-    blocks: [{ type: 'measures', kind: 'main', rows: [] }],
+    blocks: [
+      { type: 'prose', heading: offerLabels[lang].sections.artist, paragraphs: [''] },
+      { type: 'prose', heading: offerLabels[lang].sections.condition, paragraphs: [''] },
+      { type: 'measures', kind: 'main', rows: [] },
+    ],
     cost: { materials: true },
     rate: settings.hourlyRate,
   }),

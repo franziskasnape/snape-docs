@@ -12,8 +12,10 @@ export function kv(heading: string, lines: { k: string; v: string }[]): string {
 
 /** heading plus paragraphs. Paragraph html is trusted editor content. */
 export function prose(heading: string | undefined, paragraphs: string[]): string {
+  const body = paragraphs.filter((p) => p.trim());
+  if (!heading && !body.length) return '';
   return (heading ? `<div class="section-heading">${esc(heading)}</div>` : '')
-    + paragraphs.map((p) => `<div class="section-body">${p}</div>`).join('');
+    + body.map((p) => `<div class="section-body">${p}</div>`).join('');
 }
 
 /** labelled paragraph: <em>Hinweis:</em> … */
