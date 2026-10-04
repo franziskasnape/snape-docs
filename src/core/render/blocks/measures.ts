@@ -3,12 +3,14 @@ import type { ImageRef, RenderContext } from '../../types';
 import { rowFigures } from './basic';
 
 export interface MeasureRow {
+  id?: string;
   title: string; desc: string;
   hoursMin: number; hoursMax?: number;
   images?: ImageRef[];
 }
 
 export interface MeasuresBlock {
+  id?: string;
   type: 'measures';
   kind: 'main' | 'optional';
   rows: MeasureRow[];

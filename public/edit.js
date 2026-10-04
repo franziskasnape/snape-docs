@@ -11,6 +11,9 @@ const api = async (url, method = 'GET', body) => {
   return r.json();
 };
 
+// Stable ids for blocks, rows and photos: lets history match items even when they are moved or edited
+const uid = () => Array.from(crypto.getRandomValues(new Uint8Array(4)), (b) => b.toString(16).padStart(2, '0')).join('');
+
 // ---- path helpers: "data.blocks.2.rows.0.title" ----
 const parts = (p) => p.split('.');
 const get = (p) => parts(p).reduce((o, k) => o?.[k], doc);
@@ -211,7 +214,7 @@ $('#form').addEventListener('change', async (e) => {
       setState('Uploading photo…');
       const imageId = await uploadImage(file);
       if (el.dataset.upload === 'overview') doc.data.overview = { imageId, caption: doc.lang === 'de' ? 'Gesamtansicht vor der Behandlung' : 'Overall view before treatment' };
-      else (get(el.dataset.arr) ?? (set(el.dataset.arr, []), get(el.dataset.arr))).push({ imageId, caption: '' });
+      else (get(el.dataset.arr) ?? (set(el.dataset.arr, []), get(el.dataset.arr))).push({ id: uid(), imageId, caption: '' });
     }
     dirty({ structural: true });
   }
@@ -225,20 +228,21 @@ $('#form').addEventListener('click', (e) => {
   else if (act === 'move') { const a = get(arr), j = idx + Number(dir); if (j < 0 || j >= a.length) return; [a[idx], a[j]] = [a[j], a[idx]]; }
   else if (act === 'add-kv') { doc.artwork.push({ k: '', v: '' }); }
   else if (act === 'add-para') { get(arr).push(''); }
-  else if (act === 'add-row') { get(`${path}.rows`).push({ title: '', desc: '', hoursMin: 1 }); }
-  else if (act === 'add-section') { insertBeforeTable({ type: 'prose', headingKey: section, paragraphs: [''] }); }
+  else if (act === 'add-row') { get(`${path}.rows`).push({ id: uid(), title: '', desc: '', hoursMin: 1 }); }
+  else if (act === 'add-section') { insertBeforeTable({ id: uid(), type: 'prose', headingKey: section, paragraphs: [''] }); }
   else if (act === 'custom-heading') { const blk = get(path); blk.heading = SECTIONS[blk.headingKey][doc.lang]; delete blk.headingKey; }
   else if (act === 'add-block') {
     const blk = { prose: { type: 'prose', paragraphs: [''] }, note: { type: 'note', label: 'hinweis', html: '' },
-      measures: { type: 'measures', kind, rows: [{ title: '', desc: '', hoursMin: 1 }] }, pagebreak: { type: 'pagebreak' } }[type];
+      measures: { type: 'measures', kind, rows: [{ id: uid(), title: '', desc: '', hoursMin: 1 }] }, pagebreak: { type: 'pagebreak' } }[type];
+    blk.id = uid();
     // text sections and notes belong ahead of the first treatment table; tables and page breaks go at the end
     if (type === 'prose') insertBeforeTable(blk); else doc.data.blocks.push(blk);
   }
   else if (act === 'del-overview') { delete doc.data.overview; }
-  else if (act === 'lib-row') { return openLibrary('measure', (v) => { get(`${path}.rows`).push({ title: v.title, desc: v.desc ?? '', hoursMin: v.hoursMin ?? 1, ...(v.hoursMax != null ? { hoursMax: v.hoursMax } : {}) }); dirty({ structural: true }); }); }
+  else if (act === 'lib-row') { return openLibrary('measure', (v) => { get(`${path}.rows`).push({ id: uid(), title: v.title, desc: v.desc ?? '', hoursMin: v.hoursMin ?? 1, ...(v.hoursMax != null ? { hoursMax: v.hoursMax } : {}) }); dirty({ structural: true }); }); }
   else if (act === 'lib-artist') { return openLibrary('artist', (v) => { const sec = doc.data.blocks.find((b) => b.type === 'prose' && b.headingKey === 'artist');
     if (sec) { if (sec.paragraphs.every((p) => !p.trim())) sec.paragraphs = [v.text]; else sec.paragraphs.unshift(v.text); }
-    else insertBeforeTable({ type: 'prose', headingKey: 'artist', paragraphs: [v.text] });
+    else insertBeforeTable({ id: uid(), type: 'prose', headingKey: 'artist', paragraphs: [v.text] });
     dirty({ structural: true }); }); }
   else if (act === 'snip-save') { return saveRowToLibrary(get(path)); }
   dirty({ structural: true });
@@ -274,42 +278,12 @@ function insertBeforeTable(block) {
 
 // ---- version history ----
 const histDlg = $('#histDlg');
-const FRIENDLY = { hoursMin: 'hours (min)', hoursMax: 'hours (max)', desc: 'description', html: 'text', k: 'label', v: 'value', validUntil: 'valid until', deliveryFrom: 'delivery from', pickupFrom: 'pickup from', optionalDetail: 'optional detail', overrideHtml: 'manual cost text', materials: 'materials billed separately' };
+const TAG = { changed: 'changed', restored: 'brought back', removed: 'removed', moved: 'moved' };
 
-function flatten(o, prefix = '', out = {}) {
-  if (o !== null && typeof o === 'object') for (const k of Object.keys(o)) flatten(o[k], prefix ? `${prefix}.${k}` : k, out);
-  else out[prefix] = o;
-  return out;
-}
-function describePath(path, a, b) {
-  const ks = path.split('.'), out = [];
-  const src = (get2) => get2(a) ?? get2(b);
-  if (ks[0] === 'data' && ks[1] === 'blocks') {
-    const blk = src((d) => d.data?.blocks?.[ks[2]]);
-    const name = blk ? (blk.type === 'measures' ? `Treatment table (${blk.kind})` : blk.type === 'prose' ? `Text section${blk.headingKey ? ' – ' + SECTION_UI[blk.headingKey] : blk.heading ? ' – ' + blk.heading : ''}` : BLOCK_NAMES[blk.type] ?? blk.type) : `Block ${+ks[2] + 1}`;
-    out.push(`${+ks[2] + 1}. ${name}`);
-    let rest = ks.slice(3);
-    if (rest[0] === 'rows') { out.push(`row ${+rest[1] + 1}`); rest = rest.slice(2); }
-    if (rest[0] === 'paragraphs') { out.push(`paragraph ${+rest[1] + 1}`); rest = rest.slice(2); }
-    if (rest[0] === 'images') { out.push(`photo ${+rest[1] + 1}`); rest = rest.slice(2); }
-    if (rest.length) out.push(rest.map((k) => FRIENDLY[k] ?? k).join(' '));
-  } else if (ks[0] === 'artwork') out.push('Object', `line ${+ks[1] + 1}`, FRIENDLY[ks[2]] ?? ks[2]);
-  else if (ks[0] === 'data') out.push(ks.slice(1).map((k) => FRIENDLY[k] ?? k).join(' › '));
-  else out.push(ks.join(' › '));
-  return out.join(' › ');
-}
-const short = (v) => (v === undefined ? '' : String(v).replace(/\s+/g, ' ').slice(0, 80) + (String(v).length > 80 ? '…' : ''));
-
-/** What restoring `snap` would change relative to the current editor state. */
+/** What restoring `snap` would change relative to the current editor state (block-aware, see diff.js). */
 function diffAgainstCurrent(snap) {
   const cur = { title: doc.title, status: doc.status, artwork: doc.artwork, data: doc.data };
-  const old = { title: snap.title ?? doc.title, status: snap.status ?? doc.status, artwork: snap.artwork ?? doc.artwork, data: snap.data };
-  const A = flatten(cur), B = flatten(old), rows = [];
-  for (const p of new Set([...Object.keys(A), ...Object.keys(B)])) {
-    if (A[p] === B[p]) continue;
-    rows.push(`<li><span class="where">${esc(describePath(p, cur, old))}</span>${A[p] === undefined ? '<ins>(added)</ins>' : `<del>${esc(short(A[p]))}</del>`} → ${B[p] === undefined ? '<del>(removed)</del>' : `<ins>${esc(short(B[p]))}</ins>`}</li>`);
-  }
-  return rows;
+  return DocDiff.diffDocs(cur, snap).map((it) => `<li><span class="tag ${it.tag}">${TAG[it.tag]}</span><span class="where">${esc(it.where)}</span><div class="what">${it.html}</div></li>`);
 }
 
 // timestamps are stored in UTC; show them in the viewer's local time
@@ -329,7 +303,7 @@ $('#histList').addEventListener('click', async (e) => {
   const v = await api(`/api/documents/${id}/versions/${b.dataset.vid}`);
   const rows = diffAgainstCurrent(v.snapshot);
   $('#histDetail').innerHTML = `<h3 style="margin:0 0 4px">${esc(when(v.createdAt))} ${v.note ? '— ' + esc(v.note) : ''}</h3>
-    ${rows.length ? `<p class="hint">Restoring this version would change ${rows.length} thing${rows.length > 1 ? 's' : ''} (current → version). Moved or deleted blocks can show up as several changes.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
+    ${rows.length ? `<p class="hint">Restoring this version would make ${rows.length} change${rows.length > 1 ? 's' : ''}. <del>Red</del> is what you have now and would disappear; <ins>green</ins> is what would appear.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
       : '<p class="hint">Identical to the current state.</p>'}
     <button type="button" class="primary" id="restoreBtn" ${rows.length ? '' : 'disabled'}>Restore this version</button>
     <span class="hint"> Your current state is saved as a version first, so you can undo a restore.</span>`;

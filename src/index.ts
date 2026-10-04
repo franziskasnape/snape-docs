@@ -1,5 +1,5 @@
 import { Hono } from 'hono';
-import { buildContext, getDocument, type Env } from './core/db';
+import { buildContext, getDocument, parseData, type Env } from './core/db';
 
 import { documents } from './routes/documents';
 import { clients } from './routes/clients';
@@ -36,7 +36,7 @@ app.get('/documents/:id/print', async (c) => {
   const dt = getDocType(doc.type);
   if (!dt) return c.text('unsupported document type', 400);
   const ctx = await buildContext(c.env, doc, (id) => `/img/${id}`);
-  return c.html(dt.render(JSON.parse(doc.data), ctx));
+  return c.html(dt.render(parseData(doc), ctx));
 });
 
 // Self-contained single-file export (fonts, images, seal and Paged.js inlined) — like the original hand-built offers.
@@ -54,7 +54,7 @@ app.get('/documents/:id/standalone.html', async (c) => {
   const paged = new TextDecoder().decode(await asset('/paged.polyfill.js')).replace(/<\/script/gi, '<\\/script');
 
   const ctx = await buildContext(c.env, doc, (id) => `/img/${id}`);
-  let html = dt.render(JSON.parse(doc.data), ctx, { inlineCss: css, sealSrc: seal, inlinePaged: paged });
+  let html = dt.render(parseData(doc), ctx, { inlineCss: css, sealSrc: seal, inlinePaged: paged });
   for (const id of new Set([...html.matchAll(/\/img\/(\d+)/g)].map((m) => Number(m[1])))) {
     const row = await c.env.DB.prepare('SELECT r2_key, mime FROM images WHERE id = ?').bind(id).first<{ r2_key: string; mime: string }>();
     const obj = row && await c.env.IMAGES.get(row.r2_key);

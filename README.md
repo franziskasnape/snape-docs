@@ -61,6 +61,19 @@ src/routes/          documents, clients, images, snippets, settings API
 ```
 Client data lives in `.wrangler/` and `seed/` (both git-ignored). Back them up separately.
 
+## Changing the shape of document data
+Document data carries a schema version (`data.v`, missing = 1). Adding an **optional** field needs nothing:
+old documents and snapshots simply lack it and the code falls back to a default. For anything else
+(rename, move, restructure) add a migration to the doc type, e.g. `src/doctypes/offer/migrations.ts`:
+
+1. Append a function to the `migrations` array (index i upgrades version i+1 → i+2) and bump `schemaVersion`.
+2. Make `defaultData` produce the new shape (and set `v`).
+
+Documents are upgraded when loaded (display, print, diff, restore) and the upgrade is stored the first time
+a document is opened. **History snapshots are never rewritten**; they are upgraded on read, so old versions
+can still be compared and restored. Blocks, treatment rows and photos carry stable `id`s, which is what lets
+the History panel (`public/diff.js`) tell "moved" from "edited" from "deleted".
+
 ## Adding a new document type
 Create `src/doctypes/<type>/` with a schema, a render function composing `core/render/frame`
 and the shared blocks, and its own labels; register it with an id and number prefix

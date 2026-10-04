@@ -1,6 +1,6 @@
 export type Lang = 'de' | 'en';
 
-export interface ImageRef { imageId: number; caption?: string }
+export interface ImageRef { id?: string; imageId: number; caption?: string }
 
 export interface Party {
   name?: string; address?: string; contact?: string; phone?: string; email?: string;
@@ -26,6 +26,9 @@ export interface DocType<D = unknown> {
   prefix: string;
   labels: Record<Lang, string>;
   statuses: string[];
+  /** Current shape of `data`; older data is upgraded by `migrations` when loaded (see core/migrate.ts) */
+  schemaVersion: number;
+  migrations: ((d: any) => any)[];
   /** Initial `data` for a new document; `today` is ISO yyyy-mm-dd */
   defaultData(lang: Lang, settings: Settings, today: string): D;
   /** Default Objekt lines for a new document */

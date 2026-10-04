@@ -1,6 +1,8 @@
 import type { DocType, RenderContext } from '../../core/types';
 import { common } from '../../core/i18n';
 import { fmtDate } from '../../core/format';
+import { uid } from '../../core/migrate';
+import { offerMigrations } from './migrations';
 import { frame, type FrameOptions } from '../../core/render/frame';
 import { kv, note, overviewFigure, pageBreak, prose } from '../../core/render/blocks/basic';
 import { measures } from '../../core/render/blocks/measures';
@@ -65,12 +67,15 @@ export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
   statuses: ['draft', 'sent', 'accepted', 'declined'],
+  schemaVersion: 2,
+  migrations: offerMigrations,
   defaultData: (_lang, settings, today) => ({
+    v: 2,
     meta: { date: today, validUntil: addDays(today, settings.validityDays) },
     blocks: [
-      { type: 'prose', headingKey: 'artist', paragraphs: [''] },
-      { type: 'prose', headingKey: 'condition', paragraphs: [''] },
-      { type: 'measures', kind: 'main', rows: [] },
+      { id: uid(), type: 'prose', headingKey: 'artist', paragraphs: [''] },
+      { id: uid(), type: 'prose', headingKey: 'condition', paragraphs: [''] },
+      { id: uid(), type: 'measures', kind: 'main', rows: [] },
     ],
     cost: { materials: true },
     rate: settings.hourlyRate,

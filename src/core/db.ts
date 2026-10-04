@@ -1,5 +1,7 @@
 import type { Lang, Party, RenderContext } from './types';
 import { imageSize } from './imageSize';
+import { upgrade } from './migrate';
+import { getDocType } from './registry';
 
 export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher }
 
@@ -59,4 +61,9 @@ export async function nextNumber(env: Env, prefix: string, year: number): Promis
   const { results } = await env.DB.prepare('SELECT number FROM documents WHERE number LIKE ?').bind(like).all<{ number: string }>();
   const max = results.reduce((a, r) => Math.max(a, Number(r.number.split('-')[2]) || 0), 0);
   return `${prefix}-${year}-${String(max + 1).padStart(3, '0')}`;
+}
+
+/** A document's data, upgraded to the current schema of its type. */
+export function parseData(doc: Pick<DocRow, 'type' | 'data'>): any {
+  return upgrade(getDocType(doc.type), JSON.parse(doc.data));
 }
