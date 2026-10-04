@@ -1,4 +1,5 @@
 import type { Lang, Party, RenderContext } from './types';
+import { imageSize } from './imageSize';
 
 export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher }
 
@@ -13,7 +14,22 @@ export async function getDocument(env: Env, id: number): Promise<DocRow | null> 
 }
 
 /** Everything a renderer needs besides doc.data. */
-export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContext['imageSrc']): Promise<RenderContext> {
+/** Dimensions of every image referenced in a document's data; missing ones are read from R2 once and stored. */
+export async function loadImageDims(env: Env, dataJson: string): Promise<Record<number, { w: number; h: number }>> {
+  const ids = [...new Set([...dataJson.matchAll(/"imageId":\s*(\d+)/g)].map((m) => Number(m[1])))];
+  const dims: Record<number, { w: number; h: number }> = {};
+  for (const id of ids) {
+    const row = await env.DB.prepare('SELECT r2_key, width, height FROM images WHERE id = ?').bind(id).first<{ r2_key: string; width: number | null; height: number | null }>();
+    if (!row) continue;
+    if (row.width && row.height) { dims[id] = { w: row.width, h: row.height }; continue; }
+    const obj = await env.IMAGES.get(row.r2_key);
+    const size = obj ? imageSize(await obj.arrayBuffer()) : null;
+    if (size) { dims[id] = size; await env.DB.prepare('UPDATE images SET width = ?, height = ? WHERE id = ?').bind(size.w, size.h, id).run(); }
+  }
+  return dims;
+}
+
+export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContext['imageSrc'], dataJson?: string): Promise<RenderContext> {
   const client = doc.client_id
     ? await env.DB.prepare('SELECT name,address,contact,phone,email FROM clients WHERE id = ?').bind(doc.client_id).first<Party>()
     : null;
@@ -25,6 +41,7 @@ export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContex
     client: client ?? {},
     artwork: art ? JSON.parse(art.fields) : [],
     imageSrc,
+    imageDims: await loadImageDims(env, dataJson ?? doc.data ?? ''),
   };
 }
 

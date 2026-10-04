@@ -93,7 +93,7 @@ documents.delete('/:id', async (c) => {
 documents.post('/render', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(b.type ?? 'offer');
-  const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `/img/${id}`);
+  const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `/img/${id}`, JSON.stringify(b.data));
   return c.html(dt.render(b.data, { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }, { embedded: true }));
 });
 

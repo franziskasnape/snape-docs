@@ -9,7 +9,7 @@ export type OfferBlock =
 
 export interface OfferData {
   meta: { date: string; validUntil: string; title?: string; eyebrow?: string };
-  overview?: ImageRef & { note?: string };
+  overview?: ImageRef & { note?: string; layout?: 'auto' | 'landscape' | 'portrait' };
   blocks: OfferBlock[];
   cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string };
   rate: number;

@@ -23,9 +23,14 @@ export function note(label: string, html: string): string {
   return `<div class="section-body"><em>${esc(label)}</em> ${html}</div>`;
 }
 
-export function overviewFigure(ctx: RenderContext, img: ImageRef | undefined, note?: string): string {
+export type OverviewLayout = 'auto' | 'landscape' | 'portrait';
+
+/** Overview photo beside the Objekt/Auftraggeber block. Portrait photos get a narrower, height-capped frame. */
+export function overviewFigure(ctx: RenderContext, img: ImageRef | undefined, note?: string, layout: OverviewLayout = 'auto'): string {
   if (!img) return '';
-  return `<div class="overview-fig"><img src="${esc(ctx.imageSrc(img.imageId))}" alt="${esc(img.caption)}">`
+  const d = ctx.imageDims?.[img.imageId];
+  const portrait = layout === 'portrait' || (layout === 'auto' && !!d && d.w / d.h < 0.95);
+  return `<div class="overview-fig ${portrait ? 'portrait' : 'landscape'}"><img src="${esc(ctx.imageSrc(img.imageId))}" alt="${esc(img.caption)}">`
     + (img.caption ? `<div class="cap">${esc(img.caption)}</div>` : '')
     + (note ? `<div class="cap note">${esc(note)}</div>` : '')
     + `</div>`;

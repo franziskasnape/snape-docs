@@ -15,6 +15,8 @@ export interface RenderContext {
   artwork: { k: string; v: string }[];
   /** Resolve an image id to a URL or data: URI */
   imageSrc(id: number): string;
+  /** Pixel sizes of the images a document uses (for choosing layouts) */
+  imageDims?: Record<number, { w: number; h: number }>;
 }
 
 export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang }

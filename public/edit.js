@@ -86,7 +86,7 @@ function formHtml() {
   </fieldset>
 
   <fieldset><legend>Overview photo</legend>
-    ${ov ? `<div class="thumbs"><div class="thumb"><img src="/img/${ov.imageId}" alt=""></div></div>${input('data.overview.caption', 'Caption')}${input('data.overview.note', 'Note under caption (optional)')}${btn('del-overview', '', 'Remove photo', 'mini danger')}`
+    ${ov ? `<div class="thumbs"><div class="thumb"><img src="/img/${ov.imageId}" alt=""></div></div><label class="field">Layout<select data-path="data.overview.layout">${[['auto', 'Automatic (by photo shape)'], ['landscape', 'Landscape (wide)'], ['portrait', 'Portrait (tall, narrower)']].map(([v, l]) => `<option value="${v}" ${(ov.layout ?? 'auto') === v ? 'selected' : ''}>${l}</option>`).join('')}</select></label>${input('data.overview.caption', 'Caption')}${input('data.overview.note', 'Note under caption (optional)')}${btn('del-overview', '', 'Remove photo', 'mini danger')}`
         : `<label class="drop">+ Overview photo<input type="file" accept="image/*" hidden data-upload="overview"></label>`}
   </fieldset>
 

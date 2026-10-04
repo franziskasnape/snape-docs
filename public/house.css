@@ -90,6 +90,8 @@ body {
 
 .overview-fig { width:66mm; flex:none; margin-top:6.5mm; }
 .overview-fig img { display:block; width:100%; border:0.4pt solid #d8cec2; }
+.overview-fig.portrait { width:48mm; margin-top:4mm; }
+.overview-fig.portrait img { width:auto; max-width:100%; max-height:84mm; }
 .overview-fig .cap { font-size:6.8pt; color:#6f5f49; margin-top:1mm; font-weight:600; }
 .overview-fig .cap.note { font-weight:400; font-style:italic; margin-top:0.5mm; }
 

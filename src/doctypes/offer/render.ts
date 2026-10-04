@@ -20,7 +20,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
     { k: C.phone, v: c.phone ?? '' }, { k: C.email, v: c.email ?? '' },
   ];
   const info = `<div class="info-grid"><div class="info-stack">${kv(C.object, ctx.artwork)}${kv(C.client, clientLines)}</div>`
-    + overviewFigure(ctx, d.overview, d.overview?.note) + `</div>`;
+    + overviewFigure(ctx, d.overview, d.overview?.note, d.overview?.layout) + `</div>`;
 
   const blocks = d.blocks.map((b) => {
     switch (b.type) {
