@@ -32,7 +32,7 @@ const SECTIONS = { artist: { de: 'Zum Künstler und Werk', en: 'About the Artist
 const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', pagebreak: 'Page break' };
 
 // ---- form builders ----
-const input = (path, label, opts = {}) => `<label class="field">${label}<input data-path="${path}" ${opts.type ? `type="${opts.type}" data-num="1" step="${opts.step ?? 'any'}"` : ''} value="${esc(get(path))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}></label>`;
+const input = (path, label, opts = {}) => `<label class="field">${label}<input data-path="${path}" ${opts.type ? `type="${opts.type}"${opts.type === 'number' ? ` data-num="1" step="${opts.step ?? 'any'}"` : ''}` : ''} value="${esc(get(path))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}></label>`;
 const area = (path, label, rows = 3) => `<label class="field">${label}<textarea data-path="${path}" rows="${rows}">${esc(get(path))}</textarea></label>`;
 const btn = (act, attrs, text, cls = 'mini') => `<button type="button" class="${cls}" data-act="${act}" ${attrs}>${text}</button>`;
 const mover = (arr, i) => '<span class="movers">' + btn('move', `data-arr="${arr}" data-i="${i}" data-dir="-1"`, '↑') + btn('move', `data-arr="${arr}" data-i="${i}" data-dir="1"`, '↓') + btn('del', `data-arr="${arr}" data-i="${i}"`, '✕', 'mini danger') + '</span>';
@@ -190,6 +190,7 @@ $('#form').addEventListener('input', (e) => {
   let v = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.num) v = v === '' ? undefined : Number(v);
   else if (el.type !== 'checkbox' && v === '' && /\.(heading|note|deliveryFrom|pickupFrom)$/.test(p)) v = undefined;
+  if (el.type === 'date' && !v) return;           // a half-typed or cleared date is not a date: keep the last good one
   set(p, v);
   dirty({ client: p.startsWith('client.') });
 });

@@ -33,6 +33,8 @@ export interface DocType<D = unknown> {
   defaultData(lang: Lang, settings: Settings, today: string): D;
   /** Default Objekt lines for a new document */
   defaultArtwork(lang: Lang): { k: string; v: string }[];
+  /** Returns an error message if `data` must not be saved (e.g. a missing date), otherwise null */
+  validate?(data: D): string | null;
   render(data: D, ctx: RenderContext, opts?: { cssHref?: string; inlineCss?: string; sealSrc?: string }): string;
   /** Generated default text of the computed cost paragraph, if the type has one (editor 'edit manually') */
   costText?(data: D, lang: Lang): string;

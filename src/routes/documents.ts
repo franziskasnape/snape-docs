@@ -90,7 +90,11 @@ documents.put('/:id', async (c) => {
   if (!doc) return c.json({ error: 'not found' }, 404);
   const b = await c.req.json<any>();
   const dt = getDocType(doc.type);
-  if (b.data) b.data = upgrade(dt, b.data);                 // a stale editor tab may still send an older shape
+  if (b.data) {
+    b.data = upgrade(dt, b.data);                           // a stale editor tab may still send an older shape
+    const problem = dt.validate?.(b.data);
+    if (problem) return c.json({ error: problem }, 400);    // never store data that cannot be printed properly
+  }
   if (b.status && !dt.statuses.includes(b.status)) return c.json({ error: 'invalid status' }, 400);
   // keep history: snapshot the state *before* this save on status changes, and as a periodic checkpoint
   if (b.status && b.status !== doc.status) await saveVersion(c.env, doc, 'status', `Status: ${doc.status} → ${b.status}`);

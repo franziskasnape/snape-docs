@@ -58,7 +58,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   return frame({
     lang: ctx.lang,
     title: `Snape-Conservation_${ctx.number}_${ctx.lang === 'de' ? 'Angebot' : 'Offer'}`,
-    metaRows: [[L.number, ctx.number], [C.date, fmtDate(d.meta.date)], [L.validUntil, fmtDate(d.meta.validUntil)]],
+    metaRows: [[L.number, ctx.number], ...(d.meta.date ? [[C.date, fmtDate(d.meta.date)] as [string, string]] : []), ...(d.meta.validUntil ? [[L.validUntil, fmtDate(d.meta.validUntil)] as [string, string]] : [])],
     body, ...opts,
   });
 }
@@ -88,5 +88,11 @@ export const offerType: DocType<OfferData> = {
     ? ['Künstler/in', 'Titel', 'Technik / Material', 'Masse (H × B × T)']
     : ['Artist', 'Title', 'Technique / Material', 'Dimensions (H × W × D)']).map((k) => ({ k, v: '' })),
   render: (d, ctx, opts) => renderOffer(d, ctx, opts),
+  validate: (d) => {
+    const iso = /^\d{4}-\d{2}-\d{2}$/;
+    if (!iso.test(d.meta?.date ?? '')) return 'The offer date is missing or not a valid date';
+    if (d.meta?.validUntil && !iso.test(d.meta.validUntil)) return '“Valid until” is not a valid date';
+    return null;
+  },
   costText: (d, lang) => costParagraph({ ...d, cost: { ...d.cost, overrideHtml: undefined } }, lang),
 };
