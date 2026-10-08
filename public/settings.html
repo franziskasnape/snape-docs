@@ -21,15 +21,48 @@
     <label class="field">Default language<select id="lang"><option value="de">Deutsch</option><option value="en">English</option></select></label>
     <p class="hint">Existing documents keep their own rate and dates; these only apply to new documents.</p>
   </fieldset>
+  <fieldset>
+    <legend>Signature</legend>
+    <p class="hint">Printed on the contractor line of the last page of every offer (together with the place and the offer date). Stored only in your own database and backups, never in the code repository.</p>
+    <div id="sigPreview" style="min-height:70px;border:1px dashed #cfc7ba;border-radius:6px;padding:8px;display:flex;align-items:center;margin-bottom:10px;background:#fff"><span class="muted">No signature uploaded yet</span></div>
+    <label class="drop" style="display:inline-block">Upload signature image<input id="sigFile" type="file" accept="image/png,image/jpeg,image/*" hidden></label>
+    <button type="button" id="sigRemove" class="link danger" hidden>Remove</button>
+    <p class="hint">Tip: sign with a dark pen on plain white paper and photograph or scan it straight on, well lit. The background is removed automatically, and so is a baseline drawn under the signature (the form has its own line).</p>
+    <label class="field">Place of signing<input id="place" maxlength="60"></label>
+  </fieldset>
 </main>
+<script src="/signature-clean.js"></script>
 <script>
 const $ = (s) => document.querySelector(s);
 const api = async (m, b) => (await fetch('/api/settings', { method: m, headers: { 'content-type': 'application/json' }, body: b && JSON.stringify(b) })).json();
-(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; })();
+function showSig(s) {
+  $('#sigPreview').innerHTML = s.signatureImageId ? `<img src="/img/${s.signatureImageId}?t=${Date.now()}" alt="Signature" style="max-height:60px;max-width:100%">` : '<span class="muted">No signature uploaded yet</span>';
+  $('#sigRemove').hidden = !s.signatureImageId;
+}
+(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; $('#place').value = s.signaturePlace; showSig(s); })();
+
+// Upload: remove the paper background and any baked-in baseline, crop to the ink, keep it as a transparent PNG
+$('#sigFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0]; if (!file) return;
+  $('#state').textContent = 'Processing…';
+  try {
+    const bmp = await createImageBitmap(file), k = Math.min(1, 1200 / bmp.width), w = Math.round(bmp.width * k), h = Math.round(bmp.height * k);
+    const c0 = Object.assign(document.createElement('canvas'), { width: w, height: h }), x0 = c0.getContext('2d', { willReadFrequently: true });
+    x0.fillStyle = '#fff'; x0.fillRect(0, 0, w, h); x0.drawImage(bmp, 0, 0, w, h);
+    const res = cleanSignature(x0.getImageData(0, 0, w, h));
+    const c1 = Object.assign(document.createElement('canvas'), { width: res.width, height: res.height });
+    c1.getContext('2d').putImageData(new ImageData(res.data, res.width, res.height), 0, 0);
+    const blob = await new Promise((r) => c1.toBlob(r, 'image/png'));
+    const up = await (await fetch(`/api/images?w=${res.width}&h=${res.height}`, { method: 'POST', headers: { 'content-type': 'image/png' }, body: blob })).json();
+    showSig(await api('PUT', { signatureImageId: up.id, signatureBaseline: res.baseline ?? 0.12 })); $('#state').textContent = 'Saved';
+  } catch (err) { $('#state').textContent = 'Upload failed: ' + err.message; }
+  e.target.value = '';
+});
+$('#sigRemove').addEventListener('click', async () => { if (confirm('Remove the signature image?')) { showSig(await api('PUT', { signatureImageId: null })); $('#state').textContent = 'Saved'; } });
 let t;
 document.querySelectorAll('input,select').forEach((el) => el.addEventListener('input', () => {
   $('#state').textContent = 'Saving…'; clearTimeout(t);
-  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value }); $('#state').textContent = 'Saved'; }, 600);
+  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value, signaturePlace: $('#place').value }); $('#state').textContent = 'Saved'; }, 600);
 }));
 </script>
 </body>

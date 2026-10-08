@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { buildContext, getDocument, getSettings, nextNumber, parseData, type Env } from '../core/db';
 import { needsUpgrade, upgrade } from '../core/migrate';
+import { todayInStudioZone } from '../core/format';
 import { hostPage } from '../core/render/host';
 import { getDocType, docTypes } from '../core/registry';
 import type { Lang } from '../core/types';
@@ -34,7 +35,7 @@ documents.get('/', async (c) => {
 // Create: new, or copy of an existing document
 documents.post('/', async (c) => {
   const body = await c.req.json<{ type?: string; lang?: Lang; clientId?: number; duplicateOf?: number }>();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = todayInStudioZone();
   const settings = await getSettings(c.env);
 
   if (body.duplicateOf) {

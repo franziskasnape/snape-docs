@@ -18,6 +18,11 @@ export function fmtChfRange(min: number, max: number): string {
   return min === max ? chf(min) : `${chf(min)}–${chf(max)}`;
 }
 
+/** Today's date (yyyy-mm-dd) in the studio's time zone: just after midnight in Switzerland, UTC is still "yesterday". */
+export function todayInStudioZone(now: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
 const MONTHS: Record<Lang, string[]> = {
   de: ['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'],
   en: ['January','February','March','April','May','June','July','August','September','October','November','December'],

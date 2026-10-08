@@ -199,6 +199,8 @@
     }
     out.push(...diffBlocks(cd.blocks ?? [], vd.blocks ?? []));
     for (const f of ['deliveryFrom', 'pickupFrom', 'materials', 'optionalDetail', 'overrideHtml']) scalar(out, ['Cost summary', LABELS.fields[f] ?? f], cd.cost?.[f], vd.cost?.[f]);
+    scalar(out, ['Signature', 'print signature, place and date'], cd.sign?.enabled ?? true, vd.sign?.enabled ?? true);
+    scalar(out, ['Signature', 'place'], cd.sign?.place, vd.sign?.place);
     return out;
   }
 

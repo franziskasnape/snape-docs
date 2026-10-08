@@ -131,6 +131,10 @@ table.doc-table td.num, table.doc-table th.num { text-align:right; white-space:n
 .sign-block { display:flex; gap:14mm; margin-top:9mm; }
 .sign-box { flex:1; }
 .sign-rule { border-bottom:0.6pt solid #1a1613; height:5mm; }
+.sign-rule.filled { height:15mm; display:flex; align-items:flex-end; }
+.sign-text { font-size:10pt; padding-bottom:1mm; }
+.sign-image { width:auto; max-width:70mm; object-fit:contain; object-position:left bottom; position:relative; z-index:1; }   /* height and the downward offset are set per image (the strokes cross the form's line) */
+.sign-rule.has-image + .sign-caption { margin-top:4mm; }                                                                  /* keep the crossing strokes clear of the caption */
 .sign-caption { font-size:6.8pt; color:#6f5f49; margin-top:1mm; letter-spacing:0.3pt; text-transform:uppercase; }
 
 /* ---- footer ---- */

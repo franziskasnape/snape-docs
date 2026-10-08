@@ -17,9 +17,11 @@ export interface RenderContext {
   imageSrc(id: number): string;
   /** Pixel sizes of the images a document uses (for choosing layouts) */
   imageDims?: Record<number, { w: number; h: number }>;
+  /** The studio owner's signature for the contractor line: image URL (empty if none uploaded) and the default place of signing */
+  signature?: { src: string; place: string; baseline: number };
 }
 
-export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang }
+export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang; signatureImageId: number | null; signaturePlace: string; signatureBaseline: number }
 
 export interface DocType<D = unknown> {
   id: string;

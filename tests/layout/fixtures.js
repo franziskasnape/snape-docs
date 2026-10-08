@@ -72,4 +72,5 @@ export const context = (lang = 'de') => ({
   client: { name: 'Beispiel AG', address: 'Musterstrasse 1, 8000 Musterstadt', contact: 'Erika Muster', phone: '+41 00 000 00 00', email: 'info@example.invalid' },
   artwork: [{ k: 'Künstler/in', v: 'Beispiel Künstler (erfunden)' }, { k: 'Titel', v: 'Teststudie' }, { k: 'Technik / Material', v: 'Öl auf Leinwand' }, { k: 'Masse (H × B × T)', v: '80 × 100 × 3 cm' }],
   imageSrc, imageDims,
+  signature: { src: dataUri(png(360, 240, 9)), place: 'Wollerau', baseline: 0.15 },        // invented stand-in: a gradient, not a real signature
 });

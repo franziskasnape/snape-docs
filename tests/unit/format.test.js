@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { chf, esc, fmtChfRange, fmtDate, fmtHours, fmtLongDate } from '../../src/core/format';
+import { chf, esc, fmtChfRange, fmtDate, fmtHours, fmtLongDate, todayInStudioZone } from '../../src/core/format';
 
 describe('formatting', () => {
   it('formats hour ranges', () => {
@@ -21,6 +21,11 @@ describe('formatting', () => {
     expect(fmtLongDate('2026-10-29', 'de')).toBe('29. Oktober 2026');
     expect(fmtLongDate('2026-10-29', 'en')).toBe('29 October 2026');
     expect(fmtLongDate('Mitte November 2026', 'de')).toBe('Mitte November 2026');   // free text passes through
+  });
+  it("takes 'today' in Swiss time, not UTC", () => {
+    expect(todayInStudioZone(new Date('2026-10-07T23:30:00Z'))).toBe('2026-10-08');      // 01:30 on the 8th in Switzerland (summer time)
+    expect(todayInStudioZone(new Date('2026-12-31T23:30:00Z'))).toBe('2027-01-01');      // winter time (UTC+1)
+    expect(todayInStudioZone(new Date('2026-10-07T12:00:00Z'))).toBe('2026-10-07');
   });
   it('escapes HTML', () => {
     expect(esc('<b>"Tom & Jerry"</b>')).toBe('&lt;b&gt;&quot;Tom &amp; Jerry&quot;&lt;/b&gt;');

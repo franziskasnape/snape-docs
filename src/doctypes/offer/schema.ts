@@ -15,4 +15,6 @@ export interface OfferData {
   blocks: OfferBlock[];
   cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string };
   rate: number;
+  /** contractor signature on the last page; missing = on */
+  sign?: { enabled?: boolean; place?: string };
 }

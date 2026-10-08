@@ -1,7 +1,7 @@
 // Document editor: form on the left, live page-layout preview (Vivliostyle) on the right.
 const $ = (s, r = document) => r.querySelector(s);
 const id = Number(new URLSearchParams(location.search).get('id'));
-let doc = null, clients = [], clientDirty = false;
+let doc = null, clients = [], appSettings = { signaturePlace: 'Wollerau', signatureImageId: null }, clientDirty = false;
 let saveTimer, previewTimer, saving = false, pendingSave = false, previewScroll = 0;
 
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -110,6 +110,12 @@ function formHtml() {
     <label class="check"><input type="checkbox" data-path="data.cost.materials" ${d.cost.materials ? 'checked' : ''}> Materials billed separately</label>
     <label class="check"><input type="checkbox" id="overrideToggle" ${d.cost.overrideHtml != null ? 'checked' : ''}> Edit text manually</label>
     ${d.cost.overrideHtml != null ? `<p class="hint warn">Manual text: hours and CHF figures in it do <b>not</b> update when the tables change. Untick "Edit manually" to go back to the calculated text.</p>` + area('data.cost.overrideHtml', 'Cost summary text', 8) : ''}
+  </fieldset>
+
+  <fieldset><legend>Signature</legend>
+    <label class="check"><input type="checkbox" data-path="data.sign.enabled" ${d.sign?.enabled !== false ? 'checked' : ''}> Print my signature, place and date on the contractor line of the last page</label>
+    ${input('data.sign.place', 'Place of signing (empty = default)', { ph: appSettings.signaturePlace })}
+    <p class="hint">The date is the offer date (top of this form). ${appSettings.signatureImageId ? 'Your signature image comes from the Settings page.' : '<b>No signature image yet</b>: upload it on the <a href="/settings.html" target="_blank">Settings page</a>; until then only place and date are printed.'}</p>
   </fieldset>`;
 }
 
@@ -407,7 +413,7 @@ async function saveRowToLibrary(row) {
 
 // ---- boot ----
 (async () => {
-  [doc, clients] = await Promise.all([api(`/api/documents/${id}`), api('/api/clients')]);
+  [doc, clients, appSettings] = await Promise.all([api(`/api/documents/${id}`), api('/api/clients'), api('/api/settings')]);
   const types = await api('/api/doctypes');
   const st = types.find((t) => t.id === doc.type).statuses;
   $('#status').innerHTML = st.map((s) => `<option ${s === doc.status ? 'selected' : ''}>${s}</option>`).join('');

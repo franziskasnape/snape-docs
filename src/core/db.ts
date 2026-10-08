@@ -38,12 +38,14 @@ export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContex
   const art = doc.artwork_id
     ? await env.DB.prepare('SELECT fields FROM artworks WHERE id = ?').bind(doc.artwork_id).first<{ fields: string }>()
     : null;
+  const st = await getSettings(env);
   return {
     number: doc.number, lang: doc.lang,
     client: client ?? {},
     artwork: art ? JSON.parse(art.fields) : [],
     imageSrc,
     imageDims: await loadImageDims(env, dataJson ?? doc.data ?? ''),
+    signature: { src: st.signatureImageId ? imageSrc(st.signatureImageId) : '', place: st.signaturePlace, baseline: st.signatureBaseline },
   };
 }
 
@@ -52,7 +54,7 @@ import type { Settings } from './types';
 export async function getSettings(env: Env): Promise<Settings> {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
   const m = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value)]));
-  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de' };
+  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de', signatureImageId: m.signature_image_id ?? null, signaturePlace: m.signature_place ?? 'Wollerau', signatureBaseline: m.signature_baseline ?? 0.12 };
 }
 
 /** Next number for a type prefix in the given year: ANG-2026-005 */

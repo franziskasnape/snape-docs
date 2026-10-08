@@ -12,6 +12,7 @@ forks and caches outlive a deleted repository). So the rule is simple: **the rep
 | Photos or images of artworks (any image except the studio seal) | Confidential / copyright | `.gitignore` ignores all image types except `public/seal.png`; the guard blocks them |
 | Exports, databases, backups, PDFs, spreadsheets | Contain all of the above | Ignored; the guard blocks them |
 | Fonts (Synonym, Amulya) | The Fontshare licence forbids publishing them | `public/fonts/*.otf` is ignored; install with `npm run fonts -- <folder>` |
+| Your handwritten signature image | Can be misused if public | Uploaded on the Settings page: stored only in your database/backups. The repository's tests use an invented gradient; the guard blocks images |
 | Keys, tokens, passwords, `.dev.vars`, `.env` | Secrets | Ignored. Cloudflare logins are stored by Wrangler outside the repo |
 | Your Google Drive path (`.backup-dir`) | Contains your account name | Ignored |
 

@@ -57,6 +57,13 @@ The app is then at **<http://localhost:8787>**. Leave the terminal window open w
 - **Port already in use:** another copy is running. Use the `pkill` command above, or start on another port
   with `npx wrangler dev --port 8788`.
 
+## 2b. Your signature
+
+Open **Settings**, then **Upload signature image**. A photo or scan of your signature on white paper is fine, even with a line drawn
+under it: the background and that line are removed, the picture is cropped, and the signature is placed on the form's own line on the
+last page of every offer, next to "Wollerau, <offer date>". Per offer you can switch it off or change the place (editor, *Signature*).
+The image stays in your database and backups only; never put it in the code repository.
+
 ## 3. Pages
 
 | Address | What it is |
@@ -66,7 +73,7 @@ The app is then at **<http://localhost:8787>**. Leave the terminal window open w
 | `/documents/N/print` | Print view, A4 pages. Use the browser's *Save as PDF* (the file name is pre-filled) |
 | `/documents/N/standalone.html` | One self-contained HTML file (the *Download HTML* button) |
 | `/snippets.html` | Snippet library, German and English side by side |
-| `/settings.html` | Hourly rate, offer validity, default language |
+| `/settings.html` | Hourly rate, offer validity, default language, **your signature** and the place of signing |
 | `/api/health` | Quick check that the server and database respond |
 
 **Making a PDF:** open the editor, click **Print / PDF**, then in the print dialog choose *Save as PDF*.

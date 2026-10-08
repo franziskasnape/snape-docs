@@ -91,6 +91,7 @@ d('PDF export (the print view as the browser saves it)', () => {
     expect(withHeader, 'pages showing the table header row').toBeGreaterThanOrEqual(3);   // first table page + two continuation pages
     const last = texts[texts.length - 1];
     expect(last).toContain('Kostenaufstellung'); expect(last.toLowerCase()).toContain('ort, datum');
+    expect(last).toContain('Wollerau, 04.10.2026');                          // place + offer date pre-filled on the contractor line
     texts.slice(0, -1).forEach((t, i) => expect(t.toLowerCase(), `page ${i + 1}`).not.toContain('ort, datum'));
   });
 });

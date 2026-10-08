@@ -1,6 +1,6 @@
 import type { DocType, RenderContext } from '../../core/types';
 import { common } from '../../core/i18n';
-import { fmtDate } from '../../core/format';
+import { fmtDate, fmtLongDate } from '../../core/format';
 import { uid } from '../../core/migrate';
 import { offerMigrations } from './migrations';
 import { frame, type FrameOptions } from '../../core/render/frame';
@@ -41,9 +41,19 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
     }
   }).join('\n');
 
+  // The contractor line (first row) comes pre-filled: "<place>, <offer date>" and the owner's signature image.
+  const sg = d.sign ?? {}, signing = sg.enabled !== false;
+  const place = (sg.place?.trim() || ctx.signature?.place || '').trim();
+  const dateText = d.meta.date ? (ctx.lang === 'de' ? fmtDate(d.meta.date) : fmtLongDate(d.meta.date, 'en')) : '';
+  const fillText = signing ? [place, dateText].filter(Boolean).join(', ') : '';
+  // The picture's strokes reach `baseline` (a fraction of its height) below its own baseline: lower the image by that much,
+  // so the signature stands ON the form's line, with the lower strokes crossing it.
+  const SIG_H = 14;                                                      // mm
+  const drop = ((ctx.signature?.baseline ?? 0.12) * SIG_H).toFixed(2);
+  const sigImg = signing && ctx.signature?.src ? `<img class="sign-image" src="${esc(ctx.signature.src)}" alt="" style="height:${SIG_H}mm;margin-bottom:-${drop}mm">` : '';
   const sign = `<div class="sign-group">
-    <div class="sign-block"><div class="sign-box"><div class="sign-rule"></div><div class="sign-caption">${C.signPlace}</div></div>
-      <div class="sign-box"><div class="sign-rule"></div><div class="sign-caption">${C.signMaker}</div></div></div>
+    <div class="sign-block"><div class="sign-box"><div class="sign-rule${fillText ? ' filled' : ''}">${fillText ? `<span class="sign-text">${esc(fillText)}</span>` : ''}</div><div class="sign-caption">${C.signPlace}</div></div>
+      <div class="sign-box"><div class="sign-rule${sigImg ? ' filled has-image' : ''}">${sigImg}</div><div class="sign-caption">${C.signMaker}</div></div></div>
     <div class="sign-block"><div class="sign-box"><div class="sign-rule"></div><div class="sign-caption">${C.signPlace}</div></div>
       <div class="sign-box"><div class="sign-rule"></div><div class="sign-caption">${C.signClient}</div></div></div></div>`;
 

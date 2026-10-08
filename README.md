@@ -41,7 +41,8 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Version history**: named snapshots, automatic checkpoints every 10 minutes of editing, status changes;
   a History panel with a change list, side-by-side preview and safe restore
 - **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, inserted from the editor
-- **Settings** (`/settings.html`): hourly rate, offer validity, default language
+- **Settings** (`/settings.html`): hourly rate, offer validity, default language, your signature (background and baked-in baseline are removed automatically) and place of signing
+- **Signed last page**: the contractor line is pre-filled with "Wollerau, <offer date>" and your signature standing on the line (switch off per offer)
 - **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
 - **Backup**: `npm run backup`, optional hourly automatic backups, `npm run restore`
 - **Tests**: `npm test` (67 unit tests) and `npm run test:layout` (print layout and PDF export in headless Chrome)
