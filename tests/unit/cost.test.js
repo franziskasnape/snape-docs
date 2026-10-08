@@ -26,6 +26,12 @@ describe('Kostenaufstellung', () => {
     expect(t).toContain('Die optionalen Massnahmen (Firnis) würden zusätzlich ca. 10–18 Stunden');
     expect(t).toContain("ca. CHF 1'000–1'800");
   });
+  it('prints the hours in bold in the optional-treatment sentence, like in the main sentence (German and English)', () => {
+    const o = offer(); o.blocks.push({ id: 'o', type: 'measures', kind: 'optional', rows: rows([8, 15], [2, 3]) });
+    expect(costParagraph(o, 'de')).toContain('<strong>ca. 10–18 Stunden</strong>');
+    expect(costParagraph(o, 'en')).toContain('<strong>approx. 10–18 hours</strong>');
+    expect(costParagraph(o, 'de')).toContain('<strong>ca. 5.5–7 Stunden</strong>');          // main sentence unchanged
+  });
   it('optional hours are not added to the main total', () => {
     const o = offer(); o.blocks.push({ id: 'o', type: 'measures', kind: 'optional', rows: rows([10]) });
     expect(text(costParagraph(o, 'de'))).toContain('ca. 5.5–7 Stunden');
