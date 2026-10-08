@@ -13,6 +13,8 @@ export interface MeasuresBlock {
   id?: string;
   type: 'measures';
   kind: 'main' | 'optional';
+  /** Label for alternative treatment options ("Option A"); tables that have one are offered as alternatives, not added up. */
+  option?: string;
   rows: MeasureRow[];
 }
 
@@ -32,7 +34,7 @@ export function measures(ctx: RenderContext, b: MeasuresBlock, L: MeasureLabels)
   const cols = '<colgroup><col style="width:9mm"><col><col style="width:36mm"></colgroup>';
   const thead = `<thead><tr><th></th><th>${esc(L.descCol)}</th><th class="num">${esc(L.hoursCol)}</th></tr></thead>`;
   const t = sumHours(b.rows);
-  const heading = `<div class="section-heading-row"><div class="section-heading">${esc(L.heading)}</div><div class="rate-note">${esc(L.rateNote)}</div></div>`;
+  const heading = `<div class="section-heading-row"><div class="section-heading">${esc(b.option ? `${L.heading} – ${b.option}` : L.heading)}</div><div class="rate-note">${esc(L.rateNote)}</div></div>`;
   const totalRow = `<tr class="totals"><td></td><td class="tl">${esc(L.totalLabel)}</td><td class="num tv">${L.approx} ${fmtHours(t.min, t.max)} ${esc(L.hoursUnit)}</td></tr>`;
   const rows = b.rows.map(rowHtml);
   // ONE table, so the page-layout engine can repeat its header row on continuation pages.

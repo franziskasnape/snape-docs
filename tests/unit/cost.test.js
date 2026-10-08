@@ -55,4 +55,25 @@ describe('Kostenaufstellung', () => {
   it('a manual override replaces the calculated text', () => {
     expect(costParagraph(offer({ cost: { materials: false, overrideHtml: 'Frei formuliert.' } }), 'de')).toBe('Frei formuliert.');
   });
+
+  it('treats tables with an option label as alternatives: one figure per option, not a sum', () => {
+    const d = offer({ blocks: [
+      { id: 'a', type: 'measures', kind: 'main', option: 'Option A', rows: rows([2, 3]) },
+      { id: 'b', type: 'measures', kind: 'main', option: 'Option B', rows: rows([10, 12]) },
+    ] });
+    const t = text(costParagraph(d, 'de'));
+    expect(t).toContain('Option A: ca. 2–3 Stunden bzw. ca. CHF 200–300');
+    expect(t).toContain('Option B: ca. 10–12 Stunden bzw. ca. CHF 1\'000–1\'200');
+    expect(t).not.toContain('12–15');
+  });
+  it('adds unlabelled main tables to every option', () => {
+    const d = offer({ blocks: [
+      { id: 'c', type: 'measures', kind: 'main', rows: rows([1]) },
+      { id: 'a', type: 'measures', kind: 'main', option: 'A', rows: rows([2]) },
+      { id: 'b', type: 'measures', kind: 'main', option: 'B', rows: rows([5]) },
+    ] });
+    const t = text(costParagraph(d, 'en'));
+    expect(t).toContain('A: approx. 3 hours');
+    expect(t).toContain('B: approx. 6 hours');
+  });
 });
