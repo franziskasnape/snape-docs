@@ -13,8 +13,9 @@ export function costParagraph(d: OfferData, lang: Lang): string {
   const T = costTemplate[lang];
   const tables = d.blocks.filter((b): b is MeasuresBlock => b.type === 'measures');
   const mains = tables.filter((t) => t.kind === 'main');
-  const options = mains.filter((t) => t.option);               // alternatives (only when a table carries an option label)
-  const common = mains.filter((t) => !t.option).flatMap((t) => t.rows);
+  const options = mains.filter((t) => t.option && !t.common);  // alternatives (only when a table carries an option label)
+  const commonTables = mains.filter((t) => !t.option || t.common);
+  const common = commonTables.flatMap((t) => t.rows);
   const asOptions = options.length >= 2;
   const main = sumHours(asOptions ? common : mains.flatMap((t) => t.rows));
   const opt = sumHours(tables.filter((t) => t.kind === 'optional').flatMap((t) => t.rows));
@@ -29,7 +30,7 @@ export function costParagraph(d: OfferData, lang: Lang): string {
   if (asOptions) {
     const list = options.map((t) => {
       const s = sumHours([...common, ...t.rows]);
-      return fill(T.optionItem, { label: t.option!, hours: fmtHours(s.min, s.max), chf: fmtChfRange(s.min * r, s.max * r) });
+      return fill(T.optionItem, { label: [...commonTables.map((c) => c.option).filter(Boolean), t.option].join(' + '), hours: fmtHours(s.min, s.max), chf: fmtChfRange(s.min * r, s.max * r) });
     }).join('; ');
     out += fill(T.effortOptions, { rate: String(r), list });
   } else {

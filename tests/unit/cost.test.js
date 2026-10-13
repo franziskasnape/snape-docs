@@ -76,4 +76,15 @@ describe('Kostenaufstellung', () => {
     expect(t).toContain('A: approx. 3 hours');
     expect(t).toContain('B: approx. 6 hours');
   });
+
+  it('a labelled table marked common is added to every option and named in each total', () => {
+    const d = offer({ blocks: [
+      { id: 'c', type: 'measures', kind: 'main', option: 'Konservatorische Massnahmen', common: true, rows: rows([20, 30]) },
+      { id: 'a', type: 'measures', kind: 'main', option: 'Option A', rows: rows([11, 18.5]) },
+      { id: 'b', type: 'measures', kind: 'main', option: 'Option B', rows: rows([6, 11.5]) },
+    ] });
+    const t = text(costParagraph(d, 'de'));
+    expect(t).toContain("Konservatorische Massnahmen + Option A: ca. 31–48.5 Stunden bzw. ca. CHF 3'100–4'850");
+    expect(t).toContain("Konservatorische Massnahmen + Option B: ca. 26–41.5 Stunden bzw. ca. CHF 2'600–4'150");
+  });
 });

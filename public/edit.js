@@ -63,7 +63,7 @@ function blockHtml(b, i, n) {
   } else if (b.type === 'note') {
     body = `<label class="field">Label<select data-path="${p}.label">${Object.entries(NOTE_LABELS).map(([k, v]) => `<option value="${k}" ${b.label === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` + area(`${p}.html`, 'Text', 4);
   } else if (b.type === 'measures') {
-    body = (b.kind === 'main' ? input(`${p}.option`, 'Option label (only if the client chooses between tables, e.g. “Option A”)') : '') + `<label class="field">Kind<select data-path="${p}.kind"><option value="main" ${b.kind === 'main' ? 'selected' : ''}>Proposed (numbered, counted in the cost)</option><option value="optional" ${b.kind === 'optional' ? 'selected' : ''}>Optional (added separately)</option></select></label>`
+    body = (b.kind === 'main' ? input(`${p}.option`, 'Option label (only if the client chooses between tables, e.g. “Option A”)') + (b.option ? `<label class="check"><input type="checkbox" data-path="${p}.common" ${b.common ? 'checked' : ''}> Needed in every option (added to each option’s total, not an alternative)</label>` : '') : '') + `<label class="field">Kind<select data-path="${p}.kind"><option value="main" ${b.kind === 'main' ? 'selected' : ''}>Proposed (numbered, counted in the cost)</option><option value="optional" ${b.kind === 'optional' ? 'selected' : ''}>Optional (added separately)</option></select></label>`
       + b.rows.map((r, k) => rowHtml(p, r, k, b.rows.length)).join('') + `<div class="addbar">${btn('add-row', `data-path="${p}"`, '+ Row')}${btn('lib-row', `data-path="${p}"`, '+ From library')}</div>`;
   } else if (b.type === 'pagebreak') {
     body = '<p class="hint">Content after this block starts on a new page.</p>';

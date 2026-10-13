@@ -15,6 +15,8 @@ export interface MeasuresBlock {
   kind: 'main' | 'optional';
   /** Label for alternative treatment options ("Option A"); tables that have one are offered as alternatives, not added up. */
   option?: string;
+  /** With an option label: this table is needed in every option and is added to each option's total (it is not an alternative itself). */
+  common?: boolean;
   rows: MeasureRow[];
 }
 
