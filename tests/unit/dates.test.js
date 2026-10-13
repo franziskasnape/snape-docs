@@ -39,3 +39,16 @@ describe('editor date inputs (regression)', () => {
     expect(src).toMatch(/el\.type === 'date' && !v\) return;/);
   });
 });
+
+describe('draft offers follow today\'s date', () => {
+  const d = (over = {}) => ({ ...good(), meta: { date: '2026-10-08', validUntil: '2027-01-06', dateAuto: true, ...over } });
+  it('moves the date to today and keeps the validity span while a draft', () => {
+    const r = offerType.refresh(d(), 'draft', '2026-10-13');
+    expect(r.meta.date).toBe('2026-10-13');
+    expect(r.meta.validUntil).toBe('2027-01-11');
+  });
+  it('never changes a sent offer, or one without the switch', () => {
+    expect(offerType.refresh(d(), 'sent', '2026-10-13').meta.date).toBe('2026-10-08');
+    expect(offerType.refresh(d({ dateAuto: false }), 'draft', '2026-10-13').meta.date).toBe('2026-10-08');
+  });
+});

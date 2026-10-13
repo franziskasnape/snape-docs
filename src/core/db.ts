@@ -1,3 +1,4 @@
+import { todayInStudioZone } from './format';
 import type { Lang, Party, RenderContext } from './types';
 import { imageSize } from './imageSize';
 import { upgrade } from './migrate';
@@ -66,6 +67,7 @@ export async function nextNumber(env: Env, prefix: string, year: number): Promis
 }
 
 /** A document's data, upgraded to the current schema of its type. */
-export function parseData(doc: Pick<DocRow, 'type' | 'data'>): any {
-  return upgrade(getDocType(doc.type), JSON.parse(doc.data));
+export function parseData(doc: Pick<DocRow, 'type' | 'data'> & { status?: string }): any {
+  const dt = getDocType(doc.type), data = upgrade(dt, JSON.parse(doc.data));
+  return dt.refresh ? dt.refresh(data, doc.status ?? 'draft', todayInStudioZone()) : data;
 }

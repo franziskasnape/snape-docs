@@ -78,6 +78,7 @@ function formHtml() {
   <fieldset><legend>Document</legend>
     ${input('title', 'Title (shown in the list)', { ph: doc.artwork[0]?.v })}
     <div class="grid2">${input('data.meta.date', 'Date', { type: 'date' })}${input('data.meta.validUntil', 'Valid until', { type: 'date' })}</div>
+    <label class="check"><input type="checkbox" data-path="data.meta.dateAuto" ${d.meta.dateAuto ? 'checked' : ''}> Use today’s date while this offer is a draft (the date is fixed once it is marked as sent)</label>
     <div class="grid2">${input('data.rate', 'Hourly rate (CHF)', { type: 'number' })}<span></span></div>
   </fieldset>
 

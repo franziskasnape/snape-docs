@@ -10,7 +10,7 @@ export type OfferBlock =
 export interface OfferData {
   /** schema version, see migrations.ts (missing = 1) */
   v?: number;
-  meta: { date: string; validUntil: string; title?: string; eyebrow?: string };
+  meta: { date: string; validUntil: string; dateAuto?: boolean; title?: string; eyebrow?: string };
   overview?: ImageRef & { note?: string; layout?: 'auto' | 'landscape' | 'portrait' };
   blocks: OfferBlock[];
   cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string };

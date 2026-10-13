@@ -77,15 +77,23 @@ const addDays = (iso: string, n: number) => {
   const d = new Date(iso + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10);
 };
 
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00:00Z') - Date.parse(a + 'T00:00:00Z')) / 86400000);
+
 export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
   statuses: ['draft', 'sent', 'accepted', 'declined'],
   schemaVersion: 2,
   migrations: offerMigrations,
+  /** "Follow today's date": while a draft, the offer date is today's date and "valid until" keeps its distance from it. */
+  refresh(d, status, today) {
+    if (!d.meta.dateAuto || status !== 'draft' || d.meta.date === today) return d;
+    const shift = d.meta.date ? daysBetween(d.meta.date, today) : 0;
+    return { ...d, meta: { ...d.meta, date: today, validUntil: d.meta.validUntil ? addDays(d.meta.validUntil, shift) : d.meta.validUntil } };
+  },
   defaultData: (_lang, settings, today) => ({
     v: 2,
-    meta: { date: today, validUntil: addDays(today, settings.validityDays) },
+    meta: { date: today, validUntil: addDays(today, settings.validityDays), dateAuto: true },
     blocks: [
       { id: uid(), type: 'prose', headingKey: 'artist', paragraphs: [''] },
       { id: uid(), type: 'prose', headingKey: 'condition', paragraphs: [''] },
