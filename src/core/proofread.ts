@@ -26,6 +26,7 @@ export function systemPrompt(lang: Lang, rules: string): string {
 
 You get numbered text fields as JSON. Return only the fields that need a correction, with the complete corrected text of each. Rules:
 - Make the smallest change that fixes the problem: spelling, grammar, punctuation, wrong word forms, clear slips. Do not rewrite for taste, do not shorten or expand, do not change the meaning or the facts.
+- A sentence that is correct stays exactly as it is, even if it could be phrased differently or does not follow the studio's usual style. Do not change the voice or point of view (for example "wir" stays "wir"). The house rules below describe spelling conventions and vocabulary; they are not a reason to rewrite correct sentences.
 - Fields marked html contain HTML. Keep every tag exactly as it is (same tags, same order, same attributes). Only the text between the tags may change.
 - Never change numbers, hours, CHF amounts, dates, object numbers, names of people, artists, places or works, or quoted titles.
 - If a field is fine, leave it out. If nothing needs changing, return an empty list.
@@ -53,7 +54,8 @@ export function resolveProvider(setting: string, hasKey: boolean): Provider {
 
 export const DEFAULT_BRIDGE_URL = 'http://127.0.0.1:8790';
 
-export interface ProofreadOptions { provider: Provider; apiKey: string | undefined; model: string; fields: TextField[]; lang: Lang; rules: string; baseURL?: string; bridgeURL?: string; fetch?: typeof fetch }
+export type Effort = 'low' | 'medium' | 'high';
+export interface ProofreadOptions { provider: Provider; effort?: Effort; localModel?: string; apiKey: string | undefined; model: string; fields: TextField[]; lang: Lang; rules: string; baseURL?: string; bridgeURL?: string; fetch?: typeof fetch }
 
 export async function proofread(opts: ProofreadOptions): Promise<ProofreadResult> {
   const fields = opts.fields.filter((f) => f.text.trim());
@@ -87,7 +89,7 @@ async function viaApi(opts: ProofreadOptions, system: string, user: string): Pro
     res = await client.messages.parse({
       model: opts.model, max_tokens: 16000, system,
       messages: [{ role: 'user', content: user }],
-      output_config: { format: zodOutputFormat(replySchema) },
+      output_config: { effort: opts.effort ?? 'low', format: zodOutputFormat(replySchema) },
     });
   } catch (e) {
     if (e instanceof Anthropic.AuthenticationError || e instanceof Anthropic.PermissionDeniedError) throw new ProofreadError('bad_key', 'The Anthropic API key was rejected. Check the key (and that the account has credit).', 502);
@@ -105,7 +107,7 @@ async function viaBridge(opts: ProofreadOptions, system: string, user: string): 
   const f = opts.fetch ?? fetch, url = (opts.bridgeURL ?? DEFAULT_BRIDGE_URL).replace(/\/$/, '');
   let r: Response;
   try {
-    r = await f(`${url}/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ system, user, schema: z.toJSONSchema(replySchema, { target: 'draft-7', io: 'input' }) }) });
+    r = await f(`${url}/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ system, user, schema: z.toJSONSchema(replySchema, { target: 'draft-7', io: 'input' }), model: opts.localModel || undefined, effort: opts.effort ?? 'low' }) });
   } catch {
     throw new ProofreadError('bridge_down', 'The local Claude helper is not running. In a terminal in the project folder run:  npm run claude-bridge', 503);
   }
@@ -116,5 +118,5 @@ async function viaBridge(opts: ProofreadOptions, system: string, user: string): 
   }
   const parsed = replySchema.safeParse(j.output);
   if (!parsed.success) throw new ProofreadError('bad_response', 'Claude did not return a usable answer. Try again.', 502);
-  return { suggestions: parsed.data.suggestions, usage: { inputTokens: j.usage?.input_tokens ?? 0, outputTokens: j.usage?.output_tokens ?? 0 }, model: 'local Claude' };
+  return { suggestions: parsed.data.suggestions, usage: { inputTokens: j.usage?.input_tokens ?? 0, outputTokens: j.usage?.output_tokens ?? 0 }, model: opts.localModel || 'local Claude' };
 }

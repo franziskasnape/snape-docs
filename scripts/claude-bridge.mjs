@@ -72,7 +72,7 @@ export function createBridge({ claudeBin = findClaude(), port = 8790 } = {}) {
       const dir = mkdtempSync(join(tmpdir(), 'snape-claude-'));        // empty folder: no project files, no CLAUDE.md
       try {
         const args = ['-p', '--output-format', 'json', '--no-session-persistence', '--tools', '', '--disable-slash-commands',
-          '--system-prompt', r.system, '--json-schema', JSON.stringify(r.schema), ...(r.model ? ['--model', r.model] : [])];
+          '--system-prompt', r.system, '--json-schema', JSON.stringify(r.schema), ...(r.model ? ['--model', r.model] : []), ...(['low', 'medium', 'high'].includes(r.effort) ? ['--effort', r.effort] : [])];
         const out = await run(claudeBin, args, { input: r.user, cwd: dir });
         if (!out.out.trim()) throw new Error(out.err.trim().slice(0, 300) || `claude exited with code ${out.code}`);
         send(200, extractOutput(out.out));

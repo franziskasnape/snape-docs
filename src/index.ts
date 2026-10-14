@@ -49,7 +49,7 @@ app.get('/api/proofread/status', async (c) => {
   if (provider === 'api') return c.json({ configured: !!c.env.ANTHROPIC_API_KEY, provider, model: st.proofreadModel });
   let h: any = null;                                    // ask the local helper (it must be running and logged in)
   try { h = await (await fetch(`${(c.env.CLAUDE_BRIDGE_URL ?? DEFAULT_BRIDGE_URL).replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(2500) })).json(); } catch { /* not running */ }
-  return c.json({ configured: !!h?.loggedIn, provider, model: 'local Claude', helperRunning: !!h, loggedIn: !!h?.loggedIn });
+  return c.json({ configured: !!h?.loggedIn, provider, model: st.proofreadLocalModel || 'local Claude', helperRunning: !!h, loggedIn: !!h?.loggedIn });
 });
 app.get('/api/openapi.json', (c) => c.json(openapi(new URL(c.req.url).origin)));
 

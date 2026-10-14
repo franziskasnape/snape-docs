@@ -52,9 +52,10 @@ export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContex
 
 import type { Settings } from './types';
 
-export const DEFAULT_PROOFREAD_MODEL = 'claude-opus-5-5';
+export const DEFAULT_PROOFREAD_MODEL = 'claude-haiku-5-5';        // proofreading is a light task: the small model at low effort
+export const DEFAULT_PROOFREAD_LOCAL_MODEL = 'haiku';
 export const DEFAULT_PROOFREAD_RULES = `Spelling: Swiss standard German. Write "ss" and never "ß" (Massnahmen, Strasse, gross). English documents: British spelling.
-Tone: formal, precise and factual, like a conservation report. The studio refers to itself in the third person ("Snape Art Conservation") and addresses the client formally ("der Auftraggeber").
+Tone, for reference only (never rewrite a correct sentence to match it): formal, precise and factual, like a conservation report; the client is addressed formally ("der Auftraggeber").
 Never change: numbers, hours, CHF amounts, dates, object numbers, names of people, artists, places and works, quoted titles.
 Keep the studio's technical vocabulary as written (for example Firnis, Retusche, Kittung, Festigung, Doublierung, Hinterklebung, Craquelé, Malschicht, Bildträger, Ausrahmung).
 Glossary (add your own, one per line): `;
@@ -62,7 +63,7 @@ Glossary (add your own, one per line): `;
 export async function getSettings(env: Env): Promise<Settings> {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
   const m = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value)]));
-  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de', signatureImageId: m.signature_image_id ?? null, signaturePlace: m.signature_place ?? 'Wollerau', signatureBaseline: m.signature_baseline ?? 0.12, proofreadRules: m.proofread_rules ?? DEFAULT_PROOFREAD_RULES, proofreadModel: m.proofread_model ?? DEFAULT_PROOFREAD_MODEL, proofreadProvider: m.proofread_provider ?? 'auto' };
+  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de', signatureImageId: m.signature_image_id ?? null, signaturePlace: m.signature_place ?? 'Wollerau', signatureBaseline: m.signature_baseline ?? 0.12, proofreadRules: m.proofread_rules ?? DEFAULT_PROOFREAD_RULES, proofreadModel: m.proofread_model ?? DEFAULT_PROOFREAD_MODEL, proofreadProvider: m.proofread_provider ?? 'auto', proofreadLocalModel: m.proofread_local_model ?? DEFAULT_PROOFREAD_LOCAL_MODEL, proofreadEffort: m.proofread_effort ?? 'low' };
 }
 
 /** Next number for a type prefix in the given year: ANG-2026-005 */

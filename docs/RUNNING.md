@@ -90,6 +90,8 @@ A small helper on your Mac runs Claude Code (non-interactive, `claude -p`) with 
 
 Please check Anthropic's current terms for your plan; this is meant for your own use on your own computer.
 
+With your own login the default is `haiku` at low effort too (change under **Settings → Model with your own login / Effort**). In a quick comparison on an invented German text, Haiku at low effort found all the real errors (wrong verb forms, "dass"/"die", subject-verb agreement), a little slower than Sonnet and occasionally a bit over-eager, which is why you review every suggestion before applying it.
+
 ### Option B: an Anthropic API key (billed separately)
 
 The Anthropic API is billed separately from a Claude subscription (Pro/Max does not include API use).
@@ -99,7 +101,7 @@ The Anthropic API is billed separately from a Claude subscription (Pro/Max does 
 3. In the project folder create a file named `.dev.vars` with one line, `ANTHROPIC_API_KEY=sk-ant-…`. The file is git-ignored and never leaves your Mac.
 4. Restart the app (`Ctrl+C`, then `npm run dev`).
 
-**Cost:** with the default model about 5–15 cents for a typical offer, more for a 40-object list. *Settings → Model* can be changed to a cheaper one (for example `claude-sonnet-5-5`). The key is never stored in the database, so it is not in backups.
+**Cost:** the default is the small, fast model at low effort (`claude-haiku-5-5`), which should be a few cents or less for a typical offer. *Settings → Model with an API key* and *Effort* can be changed (for example `claude-sonnet-5-5` for more careful checking). The key is never stored in the database, so it is not in backups.
 
 **House rules and glossary** (Swiss spelling, tone, studio vocabulary) are in **Settings** for both options; add terms the proofreader should leave alone.
 

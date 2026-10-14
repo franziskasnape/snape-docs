@@ -26,7 +26,12 @@
     <p id="proofStatus" class="hint">Checking…</p>
     <label class="field">How to reach Claude<select id="provider"><option value="auto">Automatic (API key if one is set, otherwise your own Claude login)</option><option value="local-claude">Your own Claude login, through the local helper (no extra cost)</option><option value="api">Anthropic API key (billed separately)</option></select></label>
     <label class="field">House rules and glossary (sent with every proofread; one rule or term per line)<textarea id="rules" rows="12"></textarea></label>
-    <label class="field">Model (API key only; your own login uses your Claude default)<input id="model" placeholder="claude-opus-5-5"></label>
+    <div class="grid2">
+      <label class="field">Model with your own login<input id="lmodel" placeholder="haiku"></label>
+      <label class="field">Effort<select id="effort"><option value="low">Low (fastest, cheapest)</option><option value="medium">Medium</option><option value="high">High</option></select></label>
+    </div>
+    <label class="field">Model with an API key<input id="model" placeholder="claude-haiku-5-5"></label>
+    <p class="hint">Proofreading is a light task: the small model (<code>haiku</code>) at low effort is the default. For your own login use an alias (<code>haiku</code>, <code>sonnet</code>, <code>opus</code>); for an API key a full name such as <code>claude-sonnet-5-5</code>.</p>
     <p class="hint">Only the wording of the offer is sent: never client names or addresses, prices, hours, dates or your private notes. A key can be set up in docs/RUNNING.md (“Proofreading”); it is never stored in the database or the code.</p>
   </fieldset>
   <fieldset>
@@ -47,7 +52,7 @@ function showSig(s) {
   $('#sigPreview').innerHTML = s.signatureImageId ? `<img src="/img/${s.signatureImageId}?t=${Date.now()}" alt="Signature" style="max-height:60px;max-width:100%">` : '<span class="muted">No signature uploaded yet</span>';
   $('#sigRemove').hidden = !s.signatureImageId;
 }
-(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; $('#place').value = s.signaturePlace; $('#rules').value = s.proofreadRules; $('#model').value = s.proofreadModel; $('#provider').value = s.proofreadProvider; showSig(s); })();
+(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; $('#place').value = s.signaturePlace; $('#rules').value = s.proofreadRules; $('#model').value = s.proofreadModel; $('#lmodel').value = s.proofreadLocalModel; $('#effort').value = s.proofreadEffort; $('#provider').value = s.proofreadProvider; showSig(s); })();
 (async () => { const p = await (await fetch('/api/proofread/status')).json(); $('#proofStatus').innerHTML = p.configured ? `<b>Ready</b> (${p.provider === 'api' ? 'Anthropic API key' : 'your own Claude login, through the local helper'}).` : p.provider === 'api' ? '<b>Not set up:</b> no Anthropic API key found.' : p.helperRunning ? '<b>Almost:</b> the local helper is running but Claude Code is not logged in. See docs/RUNNING.md, “Proofreading”.' : '<b>Not running:</b> start the local helper in a terminal (<code>npm run claude-bridge</code>). First time? See docs/RUNNING.md, “Proofreading”.'; })();
 
 // Upload: remove the paper background and any baked-in baseline, crop to the ink, keep it as a transparent PNG
@@ -71,7 +76,7 @@ $('#sigRemove').addEventListener('click', async () => { if (confirm('Remove the 
 let t;
 document.querySelectorAll('input,select,textarea').forEach((el) => el.addEventListener('input', () => {
   $('#state').textContent = 'Saving…'; clearTimeout(t);
-  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value, signaturePlace: $('#place').value, proofreadRules: $('#rules').value, proofreadModel: $('#model').value, proofreadProvider: $('#provider').value }); $('#state').textContent = 'Saved'; }, 600);
+  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value, signaturePlace: $('#place').value, proofreadRules: $('#rules').value, proofreadModel: $('#model').value, proofreadProvider: $('#provider').value, proofreadLocalModel: $('#lmodel').value, proofreadEffort: $('#effort').value }); $('#state').textContent = 'Saved'; }, 600);
 }));
 </script>
 </body>
