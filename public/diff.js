@@ -195,6 +195,8 @@
     if (ver.status !== undefined) scalar(out, ['Status'], cur.status, ver.status);
     for (const f of ['date', 'validUntil', 'title', 'eyebrow']) scalar(out, ['Document', LABELS.fields[f] ?? f], cd.meta?.[f], vd.meta?.[f]);
     scalar(out, ['Document', 'hourly rate'], cd.rate, vd.rate);
+    const plain = (h) => (h ?? '').replace(/<\/(li|p|div)>|<br\s*\/?>/g, '\n').replace(/<[^>]+>/g, '').replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').trim();
+    if (plain(cd.privateNotes) !== plain(vd.privateNotes)) scalar(out, ['Private notes'], plain(cd.privateNotes), plain(vd.privateNotes));
     if (ver.artwork) out.push(...diffObjectLines(cur.artwork ?? [], ver.artwork));
     const co = cd.overview, vo = vd.overview;
     if (!co && vo) out.push(item('restored', ['Overview photo'], '<ins>photo</ins> — would be restored'));

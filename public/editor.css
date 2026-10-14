@@ -91,6 +91,13 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 #histDlg.wide h2 { margin-bottom:8px; }
 #histDlg.wide .hist { height:78vh; max-height:none; }
 
+/* private notes */
+.notes { border-style:dashed; }
+.rt-bar { display:flex; gap:4px; margin-bottom:6px; }
+.rt { min-height:84px; border:1px solid var(--line); border-radius:6px; background:#fff; padding:8px 10px; line-height:1.45; outline:none; }
+.rt:focus { border-color:#6f5f49; }
+.rt:empty::before { content:attr(data-placeholder); color:#9a9187; }
+.rt ul, .rt ol { margin:4px 0 4px 20px; }
 /* object list rows */
 .orow { display:flex; gap:10px; border:1px solid var(--line); border-radius:6px; background:#fff; padding:8px; margin-bottom:6px; align-items:flex-start; }
 .ophoto { width:70px; flex:none; text-align:center; }

@@ -148,6 +148,10 @@ Document `data` carries a schema version, `data.v` (missing means 1). The curren
   longest-common-subsequence, text word by word. Tags: changed, brought back, removed, moved.
 - Not done yet: restoring single changes, highlighting changed areas in the pages, freezing what was actually sent.
 
+## Private notes
+
+`data.privateNotes` holds small HTML (b, i, u, lists, line breaks; everything else is stripped by `cleanNotes` in `public/edit.js`). The renderers never read it, so it is not in the print view, the PDF or the standalone HTML (`tests/unit/render.test.js` guards this). It travels with the document: history snapshots, backups and *Duplicate* include it.
+
 ## Collection offers (object lists)
 
 For a large group of works with little known about each (an "Ersteinschätzung" of 40+ framed objects), an offer uses the

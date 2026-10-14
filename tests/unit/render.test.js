@@ -106,3 +106,14 @@ describe('object lists', () => {
     expect(renderOffer(d, ctx)).not.toContain('<b>x</b>');
   });
 });
+
+describe('private notes', () => {
+  it('never appear in the printed document, in either language', () => {
+    const d = makeOffer({ seed: 11 }); d.privateNotes = '<ul><li>GEHEIMNOTIZ-4711</li></ul>';
+    for (const lang of ['de', 'en']) expect(render(d, lang)).not.toContain('GEHEIMNOTIZ');
+  });
+  it('are kept when saved and read back (the offer data is stored as it is)', () => {
+    const d = makeOffer({ seed: 12 }); d.privateNotes = '<b>x</b>';
+    expect(JSON.parse(JSON.stringify(d)).privateNotes).toBe('<b>x</b>');
+  });
+});

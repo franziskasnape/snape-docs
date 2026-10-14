@@ -19,6 +19,8 @@ export interface OfferData {
     /** 'lines' = label/value lines (rate, effort, cost) above the text, instead of one sentence; missing = 'text' */
     style?: 'text' | 'lines' };
   rate: number;
+  /** The owner's private notes about this offer (small HTML: bold, italic, lists). Never rendered into the document. */
+  privateNotes?: string;
   /** contractor signature on the last page; missing = on */
   sign?: { enabled?: boolean; place?: string };
 }

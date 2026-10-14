@@ -87,10 +87,34 @@ function blockHtml(b, i, n) {
   return `<div class="block"><div class="block-head"><span class="type">${b.type === 'prose' ? `Text section — ${b.headingKey ? SECTION_UI[b.headingKey] : esc(b.heading || 'untitled')}` : BLOCK_NAMES[b.type]}${b.type === 'measures' ? ` — ${b.kind}` : ''}</span>${mover('data.blocks', i, n)}</div>${body}</div>`;
 }
 
+// ---- private notes: a small rich-text field whose content is never printed ----
+const NOTE_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P']);
+/** Keep only simple formatting: everything else (scripts, styles, attributes, links) is dropped, its text kept. */
+function cleanNotes(html) {
+  const tpl = document.createElement('template'); tpl.innerHTML = html ?? '';
+  const walk = (node) => {
+    for (const ch of [...node.childNodes]) {
+      if (ch.nodeType === 3) continue;
+      if (ch.nodeType !== 1 || /^(SCRIPT|STYLE)$/.test(ch.tagName)) { ch.remove(); continue; }
+      walk(ch);
+      if (!NOTE_TAGS.has(ch.tagName)) ch.replaceWith(...ch.childNodes);
+      else for (const a of [...ch.attributes]) ch.removeAttribute(a.name);
+    }
+  };
+  walk(tpl.content);
+  const out = tpl.innerHTML;
+  return tpl.content.textContent.trim() || /<li/.test(out) ? out : '';
+}
+
 function formHtml() {
   const d = doc.data, ov = d.overview;
   const clientOpts = clients.map((c) => `<option value="${c.id}" ${c.id === doc.clientId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   return `
+  <fieldset class="notes"><legend>Private notes — never printed</legend>
+    <div class="rt-bar">${[['bold', '<b>B</b>'], ['italic', '<i>I</i>'], ['insertUnorderedList', '• List'], ['insertOrderedList', '1. List']].map(([c, t]) => `<button type="button" class="mini" data-cmd="${c}">${t}</button>`).join('')}</div>
+    <div class="rt" id="notes" contenteditable="true" data-placeholder="Notes for yourself about this offer (not printed, not in the PDF)…">${cleanNotes(d.privateNotes)}</div>
+  </fieldset>
+
   <fieldset><legend>Document</legend>
     ${input('title', 'Title (shown in the list)', { ph: doc.artwork[0]?.v })}
     <div class="grid2">${input('data.meta.date', 'Date', { type: 'date' })}${input('data.meta.validUntil', 'Valid until', { type: 'date' })}</div>
@@ -148,11 +172,12 @@ function renderForm() {
 }
 
 // ---- change tracking ----
-function dirty({ client = false, structural = false } = {}) {
+function dirty({ client = false, structural = false, quiet = false } = {}) {
   if (client) clientDirty = true;
   if (structural) renderForm();
   setState('Unsaved changes…');
   clearTimeout(saveTimer); saveTimer = setTimeout(save, 1200);
+  if (quiet) return;                                  // e.g. private notes: they are not part of the printed document
   clearTimeout(previewTimer); previewTimer = setTimeout(preview, 700);
 }
 const setState = (t) => ($('#saveState').textContent = t);
@@ -248,6 +273,26 @@ $('#form').addEventListener('change', async (e) => {
     }
     dirty({ structural: true });
   }
+});
+
+$('#form').addEventListener('input', (e) => {
+  if (e.target.id !== 'notes') return;
+  const html = cleanNotes(e.target.innerHTML);
+  if (html) doc.data.privateNotes = html; else delete doc.data.privateNotes;
+  dirty({ quiet: true });
+});
+$('#form').addEventListener('mousedown', (e) => {                          // keep the selection in the notes while a toolbar button is used
+  const b = e.target.closest('[data-cmd]'); if (!b) return;
+  e.preventDefault(); document.execCommand(b.dataset.cmd);
+  if (/List$/.test(b.dataset.cmd)) {                                      // Chrome jumps the caret to the start of the line: put it back at the end
+    const sel = getSelection(), at = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement, line = at?.closest('li') ?? at;
+    if (line && $('#notes').contains(line)) { const r = document.createRange(); r.selectNodeContents(line); r.collapse(false); sel.removeAllRanges(); sel.addRange(r); }
+  }
+  $('#notes').dispatchEvent(new Event('input', { bubbles: true }));
+});
+$('#form').addEventListener('paste', (e) => {                              // paste as plain text
+  if (e.target.id !== 'notes') return;
+  e.preventDefault(); document.execCommand('insertText', false, e.clipboardData.getData('text/plain'));
 });
 
 $('#form').addEventListener('click', (e) => {
