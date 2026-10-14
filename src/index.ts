@@ -1,5 +1,10 @@
 import { Hono } from 'hono';
-import { buildContext, getDocument, parseData, type Env } from './core/db';
+import { z } from 'zod';
+import { buildContext, getDocument, getSettings, parseData, type Env } from './core/db';
+import { todayInStudioZone } from './core/format';
+import { checkData, ensureIds } from './core/validate';
+import { upgrade } from './core/migrate';
+import { openapi } from './core/openapi';
 import { hostPage } from './core/render/host';
 
 import { documents } from './routes/documents';
@@ -16,6 +21,35 @@ app.route('/api/images', images);
 app.route('/api/snippets', snippets);
 app.route('/api/settings', settings);
 app.get('/api/doctypes', (c) => c.json(Object.values(docTypes).map(({ id, prefix, labels, statuses }) => ({ id, prefix, labels, statuses }))));
+app.get('/api/doctypes/:type/schema', (c) => {
+  const dt = getDocType(c.req.param('type'));
+  if (!dt?.schema) return c.json({ error: 'unknown document type', code: 'not_found' }, 404);
+  return c.json(z.toJSONSchema(dt.schema, { target: 'draft-2020-12', io: 'input' }));
+});
+app.get('/api/doctypes/:type/example', async (c) => {
+  const dt = getDocType(c.req.param('type'));
+  if (!dt) return c.json({ error: 'unknown document type', code: 'not_found' }, 404);
+  const lang = c.req.query('lang') === 'en' ? 'en' : 'de';
+  const data = ensureIds(dt.defaultData(lang, await getSettings(c.env), todayInStudioZone()));
+  return c.json({ type: dt.id, lang, artwork: dt.defaultArtwork(lang), data });
+});
+// Dry run: would this `data` be accepted? Nothing is saved.
+app.post('/api/doctypes/:type/validate', async (c) => {
+  const dt = getDocType(c.req.param('type'));
+  if (!dt) return c.json({ error: 'unknown document type', code: 'not_found' }, 404);
+  const body = await c.req.json<any>();
+  const issues = checkData(dt, ensureIds(upgrade(dt, body?.data ?? body)));
+  return c.json({ valid: !issues, issues: issues ?? [] });
+});
+app.get('/api/openapi.json', (c) => c.json(openapi(new URL(c.req.url).origin)));
+
+// Errors are always JSON on /api: {error, code, ...}
+app.notFound((c) => (new URL(c.req.url).pathname.startsWith('/api/') ? c.json({ error: 'no such endpoint', code: 'not_found' }, 404) : c.text('Not found', 404)));
+app.onError((e, c) => {
+  if (e instanceof SyntaxError) return c.json({ error: 'the request body is not valid JSON', code: 'bad_json' }, 400);
+  console.error(e);
+  return c.json({ error: 'internal error', code: 'internal' }, 500);
+});
 
 app.get('/api/health', async (c) => {
   const row = await c.env.DB.prepare('SELECT count(*) AS n FROM documents').first<{ n: number }>();

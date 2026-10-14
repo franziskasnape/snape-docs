@@ -11,6 +11,7 @@ import { esc } from '../../core/format';
 import { costLines, costParagraph } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
+import { offerSchema } from './zod';
 
 export type OfferRenderOptions = Pick<FrameOptions, 'cssHref' | 'inlineCss' | 'sealSrc'>;
 
@@ -90,6 +91,7 @@ export const offerType: DocType<OfferData> = {
   statuses: ['draft', 'sent', 'accepted', 'declined'],
   schemaVersion: 2,
   migrations: offerMigrations,
+  schema: offerSchema,
   /** "Follow today's date": while a draft, the offer date is today's date and "valid until" keeps its distance from it. */
   refresh(d, status, today) {
     if (!d.meta.dateAuto || status !== 'draft' || d.meta.date === today) return d;

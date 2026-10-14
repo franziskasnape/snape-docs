@@ -4,6 +4,8 @@ import { needsUpgrade, upgrade } from '../core/migrate';
 import { todayInStudioZone } from '../core/format';
 import { hostPage } from '../core/render/host';
 import { getDocType, docTypes } from '../core/registry';
+import { checkData, ensureIds } from '../core/validate';
+import { applyPatch, PatchError } from '../core/jsonpatch';
 import type { Lang } from '../core/types';
 
 export const documents = new Hono<{ Bindings: Env }>();
@@ -25,7 +27,7 @@ async function saveVersion(env: Env, doc: NonNullable<Awaited<ReturnType<typeof 
 // List (optionally filtered by type)
 documents.get('/', async (c) => {
   const type = c.req.query('type');
-  const sql = `SELECT d.id, d.type, d.number, d.lang, d.status, d.title, d.updated_at, c.name AS client
+  const sql = `SELECT d.id, d.type, d.number, d.lang, d.status, d.title, d.updated_at, d.rev, d.client_id, c.name AS client
     FROM documents d LEFT JOIN clients c ON c.id = d.client_id ${type ? 'WHERE d.type = ?' : ''} ORDER BY d.updated_at DESC, d.id DESC`;
   const stmt = c.env.DB.prepare(sql);
   const { results } = await (type ? stmt.bind(type) : stmt).all();
@@ -34,9 +36,10 @@ documents.get('/', async (c) => {
 
 // Create: new, or copy of an existing document
 documents.post('/', async (c) => {
-  const body = await c.req.json<{ type?: string; lang?: Lang; clientId?: number; duplicateOf?: number }>();
+  const body = await c.req.json<{ type?: string; lang?: Lang; clientId?: number; duplicateOf?: number; title?: string; status?: string; artwork?: { k: string; v: string }[]; data?: any }>();
   const today = todayInStudioZone();
   const settings = await getSettings(c.env);
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'the body must be a JSON object', code: 'bad_request' }, 400);
 
   if (body.duplicateOf) {
     const src = await getDocument(c.env, body.duplicateOf);
@@ -57,15 +60,22 @@ documents.post('/', async (c) => {
   }
 
   const dt = getDocType(body.type ?? 'offer');
-  if (!dt) return c.json({ error: `unknown type, expected one of ${Object.keys(docTypes)}` }, 400);
+  if (!dt) return c.json({ error: `unknown type, expected one of ${Object.keys(docTypes)}`, code: 'unknown_type' }, 400);
   const lang = body.lang ?? settings.defaultLang;
+  if (lang !== 'de' && lang !== 'en') return c.json({ error: 'lang must be "de" or "en"', code: 'validation' }, 400);
+  if (body.status && !dt.statuses.includes(body.status)) return c.json({ error: `status must be one of ${dt.statuses.join(', ')}`, code: 'validation' }, 400);
+  // `data` may be partial: top-level keys replace the defaults, `meta` and `cost` are merged into them
+  const base: any = dt.defaultData(lang, settings, today);
+  const data: any = ensureIds(body.data ? { ...base, ...body.data, meta: { ...base.meta, ...body.data.meta }, cost: { ...base.cost, ...body.data.cost } } : base);
+  const issues = checkData(dt, data);
+  if (issues) return c.json({ error: 'validation failed', code: 'validation', issues }, 422);
   const number = await nextNumber(c.env, dt.prefix, new Date().getFullYear());
   const art = (await c.env.DB.prepare('INSERT INTO artworks (client_id, fields) VALUES (?,?)')
-    .bind(body.clientId ?? null, JSON.stringify(dt.defaultArtwork(lang))).run()).meta.last_row_id;
+    .bind(body.clientId ?? null, JSON.stringify(body.artwork ?? dt.defaultArtwork(lang))).run()).meta.last_row_id;
   const id = (await c.env.DB.prepare(
-    `INSERT INTO documents (type, number, lang, client_id, artwork_id, data) VALUES (?,?,?,?,?,?)`
-  ).bind(dt.id, number, lang, body.clientId ?? null, art, JSON.stringify(dt.defaultData(lang, settings, today))).run()).meta.last_row_id;
-  return c.json({ id, number }, 201);
+    `INSERT INTO documents (type, number, lang, status, client_id, artwork_id, title, data) VALUES (?,?,?,?,?,?,?,?)`
+  ).bind(dt.id, number, lang, body.status ?? 'draft', body.clientId ?? null, art, body.title ?? null, JSON.stringify(data)).run()).meta.last_row_id;
+  return c.json({ id, number, rev: 0 }, 201);
 });
 
 // Read one document with its client + artwork
@@ -80,40 +90,75 @@ documents.get('/:id', async (c) => {
   }
   return c.json({
     id: doc.id, type: doc.type, number: doc.number, lang: doc.lang, status: doc.status, title: doc.title,
-    clientId: doc.client_id, client, artwork: art ? JSON.parse(art.fields) : [], data, updatedAt: doc.updated_at,
+    clientId: doc.client_id, client, artwork: art ? JSON.parse(art.fields) : [], data, updatedAt: doc.updated_at, rev: doc.rev,
   });
 });
 
-// Save: any subset of {title,status,lang,clientId,artwork,data}
-documents.put('/:id', async (c) => {
-  const id = Number(c.req.param('id'));
-  const doc = await getDocument(c.env, id);
-  if (!doc) return c.json({ error: 'not found' }, 404);
-  const b = await c.req.json<any>();
+type Doc = NonNullable<Awaited<ReturnType<typeof getDocument>>>;
+
+/** Shared by PUT and PATCH: validate, keep history, write, bump the revision. `b` is any subset of {title,status,lang,clientId,artwork,data}. */
+async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
   const dt = getDocType(doc.type);
+  if (baseRev !== undefined && baseRev !== doc.rev)
+    return c.json({ error: 'The document was changed by someone else since you read it. Read it again and redo the change.', code: 'conflict', rev: doc.rev, updatedAt: doc.updated_at }, 409);
   if (b.data) {
-    b.data = upgrade(dt, b.data);                           // a stale editor tab may still send an older shape
-    const problem = dt.validate?.(b.data);
-    if (problem) return c.json({ error: problem }, 400);    // never store data that cannot be printed properly
+    b.data = ensureIds(upgrade(dt, b.data));                // a stale editor tab may still send an older shape
+    const issues = checkData(dt, b.data);
+    if (issues) return c.json({ error: 'validation failed', code: 'validation', issues }, 422);   // never store data that cannot be printed properly
   }
-  if (b.status && !dt.statuses.includes(b.status)) return c.json({ error: 'invalid status' }, 400);
+  if (b.status && !dt.statuses.includes(b.status)) return c.json({ error: `status must be one of ${dt.statuses.join(', ')}`, code: 'validation', issues: [{ path: 'status', message: `must be one of ${dt.statuses.join(', ')}` }] }, 422);
+  if (b.lang && b.lang !== 'de' && b.lang !== 'en') return c.json({ error: 'lang must be "de" or "en"', code: 'validation', issues: [{ path: 'lang', message: 'must be "de" or "en"' }] }, 422);
   // keep history: snapshot the state *before* this save on status changes, and as a periodic checkpoint
   if (b.status && b.status !== doc.status) await saveVersion(c.env, doc, 'status', `Status: ${doc.status} → ${b.status}`);
   else {
-    const last = await c.env.DB.prepare('SELECT created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC LIMIT 1').bind(id).first<{ created_at: string }>();
-    const ageMin = last ? (Date.now() - new Date(last.created_at.replace(' ', 'T') + 'Z').getTime()) / 60000 : Infinity;
+    const last = await c.env.DB.prepare('SELECT created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC LIMIT 1').bind(doc.id).first();
+    const ageMin = last ? (Date.now() - new Date((last as any).created_at.replace(' ', 'T') + 'Z').getTime()) / 60000 : Infinity;
     if (ageMin > AUTO_EVERY_MIN && b.data && JSON.stringify(b.data) !== JSON.stringify(parseData(doc))) await saveVersion(c.env, doc, 'auto');
   }
   await c.env.DB.prepare(
-    `UPDATE documents SET title = ?, status = ?, lang = ?, client_id = ?, data = ?, updated_at = datetime('now') WHERE id = ?`
-  ).bind(b.title ?? doc.title, b.status ?? doc.status, b.lang ?? doc.lang, b.clientId === undefined ? doc.client_id : b.clientId,
-    b.data ? JSON.stringify(b.data) : doc.data, id).run();
+    `UPDATE documents SET title = ?, status = ?, lang = ?, client_id = ?, data = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?`
+  ).bind(b.title === undefined ? doc.title : b.title, b.status ?? doc.status, b.lang ?? doc.lang, b.clientId === undefined ? doc.client_id : b.clientId,
+    b.data ? JSON.stringify(b.data) : doc.data, doc.id).run();
   if (b.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(b.artwork), doc.artwork_id).run();
-  return c.json({ ok: true });
+  const now = await getDocument(c.env, doc.id);
+  return c.json({ ok: true, rev: now!.rev, updatedAt: now!.updated_at });
+}
+
+const baseRevOf = (c: any, body: any): number | undefined => {
+  const h = c.req.header('if-match')?.replace(/"/g, '');
+  const v = body?.baseRev ?? (h !== undefined && h !== '' ? Number(h) : undefined);
+  return v === undefined || v === null || Number.isNaN(Number(v)) ? undefined : Number(v);
+};
+
+// Save (replace): any subset of {title,status,lang,clientId,artwork,data}; optional baseRev / If-Match for conflict detection
+documents.put('/:id', async (c) => {
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
+  if (!doc) return c.json({ error: 'not found', code: 'not_found' }, 404);
+  const b = await c.req.json<any>();
+  return saveDoc(c, doc, b, baseRevOf(c, b));
+});
+
+// Edit with JSON Patch (RFC 6902) on {title,status,lang,clientId,artwork,data}. Body: an array of operations, or {ops, baseRev}.
+// A path segment "@<id>" addresses the array item with that id (e.g. /data/blocks/@c4f75ceb/rows/-).
+documents.patch('/:id', async (c) => {
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
+  if (!doc) return c.json({ error: 'not found', code: 'not_found' }, 404);
+  const body = await c.req.json<any>();
+  const ops = Array.isArray(body) ? body : body?.ops;
+  if (!Array.isArray(ops)) return c.json({ error: 'body must be an array of JSON Patch operations, or {"ops": [...], "baseRev": n}', code: 'bad_request' }, 400);
+  const art = doc.artwork_id ? await c.env.DB.prepare('SELECT fields FROM artworks WHERE id = ?').bind(doc.artwork_id).first<{ fields: string }>() : null;
+  const view = { title: doc.title, status: doc.status, lang: doc.lang, clientId: doc.client_id, artwork: art ? JSON.parse(art.fields) : [], data: parseData(doc) };
+  let next: any;
+  try { next = applyPatch(view, ops); } catch (e) {
+    if (e instanceof PatchError) return c.json({ error: e.message, code: 'patch_failed', opIndex: e.index }, 400);
+    throw e;
+  }
+  return saveDoc(c, doc, next, baseRevOf(c, Array.isArray(body) ? {} : body));
 });
 
 documents.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'));
+  if (!(await getDocument(c.env, id))) return c.json({ error: 'not found', code: 'not_found' }, 404);
   // images may be shared with duplicates: detach instead of cascading
   await c.env.DB.batch([
     c.env.DB.prepare('UPDATE images SET document_id = NULL WHERE document_id = ?').bind(id),
@@ -137,6 +182,15 @@ documents.post('/cost-text', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(b.type ?? 'offer');
   return c.json({ html: dt.costText?.(upgrade(dt, b.data), b.lang) ?? '' });
+});
+
+// The document itself as script-free HTML (A4 flow, house design), images as absolute URLs: for previews, checks or other renderers
+documents.get('/:id/html', async (c) => {
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
+  if (!doc) return c.json({ error: 'not found', code: 'not_found' }, 404);
+  const origin = new URL(c.req.url).origin;
+  const ctx = await buildContext(c.env, doc, (id) => `${origin}/img/${id}`);
+  return c.html(getDocType(doc.type).render(parseData(doc), ctx, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` }));
 });
 
 // ---- Version history ----
@@ -172,7 +226,7 @@ documents.post('/:id/versions/:vid/restore', async (c) => {
   const raw = JSON.parse(v.data), snap = raw.data ? raw : { data: raw };
   snap.data = upgrade(getDocType(doc.type), snap.data);
   await saveVersion(c.env, doc, 'restore', 'Saved automatically before a restore');
-  await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, status = ?, client_id = ?, updated_at = datetime('now') WHERE id = ?")
+  await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, status = ?, client_id = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(snap.data), snap.title === undefined ? doc.title : snap.title, snap.status ?? doc.status, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();
   if (snap.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(snap.artwork), doc.artwork_id).run();
   return c.json({ ok: true });

@@ -37,6 +37,8 @@ export interface DocType<D = unknown> {
   defaultArtwork(lang: Lang): { k: string; v: string }[];
   /** Returns an error message if `data` must not be saved (e.g. a missing date), otherwise null */
   validate?(data: D): string | null;
+  /** Schema of `data`: every write is checked against it and it is published as JSON Schema for scripts and agents. */
+  schema?: import('zod').ZodType;
   /** Applied whenever a document is read: lets a type keep date-like fields current while the document is still a draft. */
   refresh?(data: D, status: string, today: string): D;
   render(data: D, ctx: RenderContext, opts?: { cssHref?: string; inlineCss?: string; sealSrc?: string }): string;

@@ -26,6 +26,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 | Guide | What's in it |
 | --- | --- |
 | [docs/RUNNING.md](docs/RUNNING.md) | Install, start/stop, where your data lives, backup and restore, troubleshooting |
+| [docs/API.md](docs/API.md) | **HTTP API and command line for scripts and AI agents**: OpenAPI, JSON Schema, JSON Patch, conflict detection |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy to Cloudflare, protect it with a login, move your data, update later |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, **tests**, adding a document type, changing the data shape, conventions |
 | [docs/PUBLISHING.md](docs/PUBLISHING.md) | **This repository is public**: what must never be committed, the publish guard, new-computer setup |
@@ -40,6 +41,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
   optional treatments, calculated cost paragraph (DE/EN), signatures, portrait/landscape overview photo
 - **Private notes**: a small rich-text box (bold, italic, bullet and numbered lists) at the top of the editor, saved with the offer, in its history and in backups, and never printed or exported
 - **Collection offers**: an *Object list* block (photo, number, title, technique, size, shared assessment text, hours per object), bullet lists, and a cost summary as rate / effort / cost lines; `scripts/import-object-pdf.mjs` reads an earlier PDF into it
+- **API for scripts and agents**: everything the editor does is available over HTTP and as `npm run snape -- <command>` (create/read/edit/delete, photos, PDF, history), with OpenAPI and JSON Schema, validation errors with paths, and revision checks
 - **Version history**: named snapshots, automatic checkpoints every 10 minutes of editing, status changes;
   a History panel with a change list, side-by-side preview and safe restore
 - **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, inserted from the editor

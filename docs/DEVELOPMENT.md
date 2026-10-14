@@ -148,6 +148,14 @@ Document `data` carries a schema version, `data.v` (missing means 1). The curren
   longest-common-subsequence, text word by word. Tags: changed, brought back, removed, moved.
 - Not done yet: restoring single changes, highlighting changed areas in the pages, freezing what was actually sent.
 
+## API for scripts and agents
+
+See [API.md](API.md). The pieces: `src/doctypes/offer/zod.ts` (the schema every save is checked against and the source of the published JSON Schema),
+`src/core/validate.ts` (checks and id filling), `src/core/jsonpatch.ts` (PATCH), `src/core/openapi.ts` (the OpenAPI description),
+`scripts/snape.mjs` (command line), `tests/api/` (end-to-end tests against a running app, `npm run test:api`).
+When you add a field to the offer data, add it to **both** `schema.ts` and `zod.ts`; a new endpoint needs an entry in `openapi.ts` and a test in `tests/api/`.
+Every saving endpoint bumps `documents.rev`; the editor sends `baseRev` and shows "Changed elsewhere" on a 409.
+
 ## Private notes
 
 `data.privateNotes` holds small HTML (b, i, u, lists, line breaks; everything else is stripped by `cleanNotes` in `public/edit.js`). The renderers never read it, so it is not in the print view, the PDF or the standalone HTML (`tests/unit/render.test.js` guards this). It travels with the document: history snapshots, backups and *Duplicate* include it.

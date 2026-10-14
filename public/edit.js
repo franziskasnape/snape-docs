@@ -182,15 +182,21 @@ function dirty({ client = false, structural = false, quiet = false } = {}) {
 }
 const setState = (t) => ($('#saveState').textContent = t);
 
+let stale = false;     // another editor, script or agent saved this document after we read it
 async function save() {
+  if (stale) return;
   if (saving) { pendingSave = true; return; }
   saving = true; setState('Saving…');
   try {
     if (!doc.title && doc.artwork[0]?.v) doc.title = doc.artwork[0].v;
     if (clientDirty && doc.client?.id) { await api(`/api/clients/${doc.client.id}`, 'PUT', doc.client); clientDirty = false; }
-    await api(`/api/documents/${id}`, 'PUT', { title: doc.title, status: doc.status, clientId: doc.clientId, artwork: doc.artwork, data: doc.data });
+    doc.rev = (await api(`/api/documents/${id}`, 'PUT', { title: doc.title, status: doc.status, clientId: doc.clientId, artwork: doc.artwork, data: doc.data, baseRev: doc.rev })).rev;
     setState('Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
-  } catch (e) { setState('Save failed: ' + e.message); }
+  } catch (e) {
+    let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ }
+    if (j.code === 'conflict') { stale = true; setState('Changed elsewhere: reload this page. Edits made here since are NOT saved.'); }
+    else setState('Save failed: ' + (j.issues?.map((i) => `${i.path}: ${i.message}`).join('; ') || j.error || e.message));
+  }
   saving = false;
   if (pendingSave) { pendingSave = false; save(); }
 }
@@ -238,7 +244,7 @@ $('#form').addEventListener('input', (e) => {
   const el = e.target; const p = el.dataset.path; if (!p) return;
   let v = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.lines) v = v === '' ? undefined : v.split('\n');
-  else if (el.dataset.num) v = v === '' ? undefined : Number(v);
+  else if (el.dataset.num) v = v === '' ? (/\.(hoursMin|rate)$/.test(p) ? 0 : undefined) : Number(v);   // an empty required number is 0, never missing
   else if (el.type !== 'checkbox' && v === '' && /\.(heading|note|deliveryFrom|pickupFrom)$/.test(p)) v = undefined;
   if (el.type === 'date' && !v) return;           // a half-typed or cleared date is not a date: keep the last good one
   set(p, v);

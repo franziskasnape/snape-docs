@@ -9,7 +9,7 @@ export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher }
 export interface DocRow {
   id: number; type: string; number: string; lang: Lang; status: string;
   client_id: number | null; artwork_id: number | null; parent_id: number | null;
-  title: string | null; data: string; created_at: string; updated_at: string;
+  title: string | null; data: string; created_at: string; updated_at: string; rev: number;
 }
 
 export async function getDocument(env: Env, id: number): Promise<DocRow | null> {

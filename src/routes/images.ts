@@ -20,3 +20,16 @@ images.post('/', async (c) => {
     .bind(docId, key, mime, w, h).run()).meta.last_row_id;
   return c.json({ id }, 201);
 });
+
+// Metadata of one image, and the images of a document: GET /api/images/:id, GET /api/images?documentId=N (the bytes are at /img/:id)
+images.get('/:id', async (c) => {
+  const row = await c.env.DB.prepare('SELECT id, document_id AS documentId, mime, width, height, created_at AS createdAt FROM images WHERE id = ?').bind(Number(c.req.param('id'))).first();
+  return row ? c.json({ ...row, url: `/img/${(row as any).id}` }) : c.json({ error: 'not found', code: 'not_found' }, 404);
+});
+images.get('/', async (c) => {
+  const doc = Number(c.req.query('documentId'));
+  const { results } = await (doc
+    ? c.env.DB.prepare('SELECT id, document_id AS documentId, mime, width, height FROM images WHERE document_id = ? ORDER BY id').bind(doc)
+    : c.env.DB.prepare('SELECT id, document_id AS documentId, mime, width, height FROM images ORDER BY id DESC LIMIT 200')).all();
+  return c.json(results);
+});
