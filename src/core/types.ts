@@ -24,7 +24,7 @@ export interface RenderContext {
 /** One piece of wording a proofreader may check (see doctypes/offer/text.ts) */
 export interface TextField { path: string; text: string; label: string; html: boolean }
 
-export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang; signatureImageId: number | null; signaturePlace: string; signatureBaseline: number; proofreadRules: string; proofreadModel: string }
+export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang; signatureImageId: number | null; signaturePlace: string; signatureBaseline: number; proofreadRules: string; proofreadModel: string; proofreadProvider: 'auto' | 'api' | 'local-claude' }
 
 export interface DocType<D = unknown> {
   id: string;

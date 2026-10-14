@@ -85,7 +85,7 @@ Full detail, request and response shapes: `GET /api/openapi.json`. In short:
 | `GET /api/documents[?type=]` · `POST /api/documents` | list · create (new, with content, or `{duplicateOf: id}`) |
 | `GET/PUT/PATCH/DELETE /api/documents/:id` | read · replace parts · JSON Patch · delete (permanent: `npm run backup` first) |
 | `GET /api/documents/:id/html` | the document as HTML |
-| `POST /api/documents/:id/proofread` · `GET /api/proofread/status` | AI proofread: suggestions only (needs an Anthropic key on the server), apply accepted ones with PATCH using each suggestion's `path` |
+| `POST /api/documents/:id/proofread` · `GET /api/proofread/status` | AI proofread: suggestions only (needs an Anthropic key on the server, or the local helper `npm run claude-bridge` logged in with your own Claude account), apply accepted ones with PATCH using each suggestion's `path` |
 | `GET /documents/:id/print` · `/documents/:id/standalone.html` | A4 print view (Save as PDF) · self-contained file |
 | `GET/POST /api/documents/:id/versions` · `GET …/versions/:vid` · `POST …/versions/:vid/restore` | history |
 | `GET/POST /api/clients` · `GET/PUT/DELETE /api/clients/:id` | clients (delete only when no document uses it) |

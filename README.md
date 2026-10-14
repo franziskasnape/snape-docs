@@ -43,7 +43,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Private notes**: a small rich-text box (bold, italic, bullet and numbered lists) at the top of the editor, saved with the offer, in its history and in backups, and never printed or exported
 - **Collection offers**: an *Object list* block (photo, number, title, technique, size, shared assessment text, hours per object), bullet lists, and a cost summary as rate / effort / cost lines; `scripts/import-object-pdf.mjs` reads an earlier PDF into it
 - **API for scripts and agents**: everything the editor does is available over HTTP and as `npm run snape -- <command>` (create/read/edit/delete, photos, PDF, history), with OpenAPI and JSON Schema, validation errors with paths, and revision checks
-- **Proofreading**: spell check in the offer's language while typing, and a **Proofread** button (Claude) that suggests corrections you accept one by one; house rules and glossary in Settings
+- **Proofreading**: spell check in the offer's language while typing, and a **Proofread** button (Claude) that suggests corrections you accept one by one; works with your own Claude login (no API cost) or an API key; house rules and glossary in Settings
 - **Version history**: named snapshots, automatic checkpoints every 10 minutes of editing, status changes;
   a History panel with a change list, side-by-side preview and safe restore
 - **Snippet library** (`/snippets.html`): bilingual treatment rows and artist bios, inserted from the editor

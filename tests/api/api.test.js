@@ -40,14 +40,15 @@ d('API', () => {
 
   it('proofreading: reports whether a key is set; without one, the endpoint explains instead of failing', async () => {
     const st = (await call('/api/proofread/status')).json;
-    expect(typeof st.configured).toBe('boolean');
+    expect(typeof st.configured).toBe('boolean'); expect(['api', 'local-claude']).toContain(st.provider);
     expect(JSON.stringify(st)).not.toContain('sk-ant');
     expect((await call('/api/settings')).json.proofreadRules).toContain('Swiss');
     if (st.configured) return;                        // with a real key this would spend money: not exercised here
-    const r = await call('/api/documents', 'POST', { title: 'proofread probe (invented)' }); created.push(r.json.id);
+    const r = await call('/api/documents', 'POST', { title: 'proofread probe (invented)', data: { blocks: [{ type: 'prose', headingKey: 'condition', paragraphs: ['Erfundener Probetext.'] }] } }); created.push(r.json.id);
     const p = await call(`/api/documents/${r.json.id}/proofread`, 'POST');
-    expect(p.status).toBe(503); expect(p.json.code).toBe('not_configured');
+    expect(p.status).toBe(503); expect(['bridge_down', 'not_logged_in', 'not_configured']).toContain(p.json.code);
     expect((await call('/api/documents/999999/proofread', 'POST')).status).toBe(404);
+    
   });
 
   it('creates an offer with content in one call; ids are filled in; title and status are kept', async () => {

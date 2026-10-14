@@ -72,15 +72,36 @@ Spelling is also checked while you type: every text field is marked with the off
 **What is sent:** only the typed wording (text sections, notes, treatment titles and descriptions, object titles and texts, captions), plus the house rules from **Settings**.
 **Never sent:** client names and addresses, prices, hours, dates, your private notes.
 
-**Setup (once):** the Anthropic API is billed separately from a Claude subscription (Pro/Max does not include API use).
+There are two ways to reach Claude. **Settings → Proofreading → How to reach Claude** chooses (default *Automatic*: the API key if one is set, otherwise your own login).
 
-1. Go to <https://console.anthropic.com>, sign in (it can be the same email) and add a little credit under *Billing* (a few dollars lasts a long time). Set a monthly spend limit there if you like.
-2. *API keys* → create a key and copy it (it starts with `sk-ant-`).
-3. In the project folder, copy `.dev.vars.example` to `.dev.vars` and paste the key after `ANTHROPIC_API_KEY=`. The file is git-ignored and never leaves your Mac.
-4. Restart the app (`Ctrl+C`, then `npm run dev`). **Settings → Proofreading** should now say *Ready*.
+### Option A: your own Claude login (no extra cost)
 
-**Cost:** with the default model about 5–15 cents for a typical offer, more for a 40-object list. *Settings → Model* can be changed to a cheaper model (for example `claude-sonnet-5-5`). The key is never stored in the database, so it is not in backups.
-**House rules and glossary** (Swiss spelling, tone, studio vocabulary) are in **Settings**; add terms the proofreader should leave alone.
+A small helper on your Mac runs Claude Code (non-interactive, `claude -p`) with your own Claude account, so no API key and no extra bill. Each proofread uses some of your Claude plan's usage allowance. It only works on your own computer (a hosted copy of the app cannot reach it).
+
+1. **Start the helper** (second terminal, in the project folder) and leave it open:
+
+   ```bash
+   npm run claude-bridge
+   ```
+
+   It prints whether Claude Code was found and whether you are logged in. **Settings → Proofreading** shows the same status.
+2. **Log in once** if it says "Logged in: NO". The Claude desktop app contains Claude Code, but its login is separate. The helper prints the exact line to run (it contains the path to the program); run that line in another terminal, a browser window opens, sign in with the account that has your plan, then restart the helper. (If you installed Claude Code on its own, `claude auth login` does the same.)
+3. Click **Proofread** in an offer.
+
+Please check Anthropic's current terms for your plan; this is meant for your own use on your own computer.
+
+### Option B: an Anthropic API key (billed separately)
+
+The Anthropic API is billed separately from a Claude subscription (Pro/Max does not include API use).
+
+1. Go to <https://console.anthropic.com>, sign in and add a little credit under *Billing*; set a monthly spend limit if you like.
+2. *API keys* → create a key (starts with `sk-ant-`).
+3. In the project folder create a file named `.dev.vars` with one line, `ANTHROPIC_API_KEY=sk-ant-…`. The file is git-ignored and never leaves your Mac.
+4. Restart the app (`Ctrl+C`, then `npm run dev`).
+
+**Cost:** with the default model about 5–15 cents for a typical offer, more for a 40-object list. *Settings → Model* can be changed to a cheaper one (for example `claude-sonnet-5-5`). The key is never stored in the database, so it is not in backups.
+
+**House rules and glossary** (Swiss spelling, tone, studio vocabulary) are in **Settings** for both options; add terms the proofreader should leave alone.
 
 ## 3. Pages
 

@@ -4,7 +4,7 @@ import { imageSize } from './imageSize';
 import { upgrade } from './migrate';
 import { getDocType } from './registry';
 
-export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher; /** secret: .dev.vars locally, `wrangler secret put` when deployed; never in the database or the repository */ ANTHROPIC_API_KEY?: string; /** optional: send API calls elsewhere (a proxy, or a fake server in tests) */ ANTHROPIC_BASE_URL?: string }
+export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher; /** secret: .dev.vars locally, `wrangler secret put` when deployed; never in the database or the repository */ ANTHROPIC_API_KEY?: string; /** optional: send API calls elsewhere (a proxy, or a fake server in tests) */ ANTHROPIC_BASE_URL?: string; /** where the local Claude helper listens (default http://127.0.0.1:8790) */ CLAUDE_BRIDGE_URL?: string }
 
 export interface DocRow {
   id: number; type: string; number: string; lang: Lang; status: string;
@@ -62,7 +62,7 @@ Glossary (add your own, one per line): `;
 export async function getSettings(env: Env): Promise<Settings> {
   const { results } = await env.DB.prepare('SELECT key, value FROM settings').all<{ key: string; value: string }>();
   const m = Object.fromEntries(results.map((r) => [r.key, JSON.parse(r.value)]));
-  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de', signatureImageId: m.signature_image_id ?? null, signaturePlace: m.signature_place ?? 'Wollerau', signatureBaseline: m.signature_baseline ?? 0.12, proofreadRules: m.proofread_rules ?? DEFAULT_PROOFREAD_RULES, proofreadModel: m.proofread_model ?? DEFAULT_PROOFREAD_MODEL };
+  return { hourlyRate: m.hourly_rate ?? 100, validityDays: m.validity_days ?? 90, defaultLang: m.default_lang ?? 'de', signatureImageId: m.signature_image_id ?? null, signaturePlace: m.signature_place ?? 'Wollerau', signatureBaseline: m.signature_baseline ?? 0.12, proofreadRules: m.proofread_rules ?? DEFAULT_PROOFREAD_RULES, proofreadModel: m.proofread_model ?? DEFAULT_PROOFREAD_MODEL, proofreadProvider: m.proofread_provider ?? 'auto' };
 }
 
 /** Next number for a type prefix in the given year: ANG-2026-005 */

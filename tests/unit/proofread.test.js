@@ -15,7 +15,7 @@ const fields = [
   { path: '/data/blocks/@a/paragraphs/0', text: 'Das Gemälde zeigt eine Landschaft mit <strong>3</strong> Bäumen.', label: 'p', html: true },
   { path: '/data/blocks/@a/paragraphs/1', text: 'Alles in Ordnung.', label: 'p2', html: true },
 ];
-const run = (fetch, f = fields) => proofread({ apiKey: 'test-key', model: 'claude-opus-5-5', fields: f, lang: 'de', rules: 'Swiss spelling', fetch });
+const run = (fetch, f = fields) => proofread({ provider: 'api', apiKey: 'test-key', model: 'claude-opus-5-5', fields: f, lang: 'de', rules: 'Swiss spelling', fetch });
 
 describe('proofreading', () => {
   it('returns the suggestions with the original, the correction and the reason', async () => {
@@ -50,7 +50,7 @@ describe('proofreading', () => {
     expect(acceptable('abc', '  ')).toBe(false);
   });
   it('explains a missing or wrong key, and does not call the API without a key', async () => {
-    await expect(proofread({ apiKey: undefined, model: 'm', fields, lang: 'de', rules: '' })).rejects.toMatchObject({ code: 'not_configured', status: 503 });
+    await expect(proofread({ provider: 'api', apiKey: undefined, model: 'm', fields, lang: 'de', rules: '' })).rejects.toMatchObject({ code: 'not_configured', status: 503 });
     await expect(run(reply([], 401))).rejects.toMatchObject({ code: 'bad_key' });
     await expect(run(reply([], 401))).rejects.toBeInstanceOf(ProofreadError);
   });
@@ -58,7 +58,7 @@ describe('proofreading', () => {
     await expect(run(reply([], 200, { stop_reason: 'refusal', stop_details: { type: 'refusal', category: null, explanation: 'x' } }))).rejects.toMatchObject({ code: 'declined' });
   });
   it('does nothing (and calls nothing) for an empty document', async () => {
-    const r = await proofread({ apiKey: 'k', model: 'm', fields: [], lang: 'de', rules: '', fetch: () => { throw new Error('must not be called'); } });
+    const r = await proofread({ provider: 'api', apiKey: 'k', model: 'm', fields: [], lang: 'de', rules: '', fetch: () => { throw new Error('must not be called'); } });
     expect(r.suggestions).toEqual([]);
   });
   it('the system prompt names the language and carries the rules', () => {
@@ -82,5 +82,77 @@ describe('which wording is checked', () => {
     expect(f.some((x) => /^\/data\/blocks\/@[0-9a-z]+\/rows\/@[0-9a-z]+\/title$/.test(x.path))).toBe(true);
     expect(f.some((x) => x.path.endsWith('/defaultText'))).toBe(true);
     expect(new Set(f.map((x) => x.path)).size).toBe(f.length);
+  });
+});
+
+import { resolveProvider } from '../../src/core/proofread';
+import { createBridge, extractOutput, findClaude } from '../../scripts/claude-bridge.mjs';
+import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+describe('choosing how to reach Claude', () => {
+  it('auto = API when a key is set, otherwise your own Claude login through the local helper', () => {
+    expect(resolveProvider('auto', true)).toBe('api');
+    expect(resolveProvider('auto', false)).toBe('local-claude');
+    expect(resolveProvider('local-claude', true)).toBe('local-claude');
+    expect(resolveProvider('api', false)).toBe('api');
+  });
+});
+
+describe('the local Claude helper (with a stand-in for Claude Code)', () => {
+  const fakeClaude = (loggedIn = true) => {
+    const dir = mkdtempSync(join(tmpdir(), 'fake-claude-')), f = join(dir, 'claude');
+    writeFileSync(f, `#!/usr/bin/env node
+const a = process.argv.slice(2);
+if (a[0] === 'auth') { console.log(JSON.stringify({ loggedIn: ${loggedIn} })); process.exit(0); }
+let input = ''; process.stdin.on('data', (d) => (input += d)); process.stdin.on('end', () => {
+  const fields = JSON.parse(input);
+  if (!${loggedIn}) { console.log(JSON.stringify({ is_error: true, result: 'Not logged in · Please run /login' })); return; }
+  console.log(JSON.stringify({ is_error: false, result: '', usage: { input_tokens: 400, output_tokens: 60 },
+    structured_output: { suggestions: [{ n: 1, after: fields[0].text.replace('Gemaelde', 'Gemälde'), category: 'spelling', reason: 'Spelling.' }] },
+    _args: a.includes('--tools') && a.includes('--no-session-persistence') && a.includes('--json-schema') }));
+});`);
+    chmodSync(f, 0o755); return f;
+  };
+  const start = async (loggedIn) => { const b = createBridge({ claudeBin: fakeClaude(loggedIn), port: 0 }); await b.listen(); return { b, url: `http://127.0.0.1:${b.server.address().port}` }; };
+  const bridgeField = [{ path: '/data/blocks/@a/paragraphs/0', text: 'Das Gemaelde zeigt 3 Risse.', label: 'p', html: false }];
+
+  it('answers a proofread request through the local login, and the app side turns it into suggestions', async () => {
+    const { b, url } = await start(true);
+    try {
+      const r = await proofread({ provider: 'local-claude', apiKey: undefined, model: 'x', fields: bridgeField, lang: 'de', rules: 'r', bridgeURL: url });
+      expect(r.suggestions).toHaveLength(1);
+      expect(r.suggestions[0].after).toBe('Das Gemälde zeigt 3 Risse.');
+      expect(r.model).toBe('local Claude');
+      expect(r.usage).toEqual({ inputTokens: 400, outputTokens: 60 });
+      expect((await (await fetch(url + '/health')).json())).toMatchObject({ ok: true, loggedIn: true });
+    } finally { await b.close(); }
+  });
+  it('tells you to log in when Claude Code is not logged in', async () => {
+    const { b, url } = await start(false);
+    try {
+      await expect(proofread({ provider: 'local-claude', apiKey: undefined, model: 'x', fields: bridgeField, lang: 'de', rules: '', bridgeURL: url })).rejects.toMatchObject({ code: 'not_logged_in' });
+      expect((await (await fetch(url + '/health')).json()).loggedIn).toBe(false);
+    } finally { await b.close(); }
+  });
+  it('tells you to start the helper when it is not running', async () => {
+    await expect(proofread({ provider: 'local-claude', apiKey: undefined, model: 'x', fields: bridgeField, lang: 'de', rules: '', bridgeURL: 'http://127.0.0.1:1' })).rejects.toMatchObject({ code: 'bridge_down' });
+  });
+  it('refuses requests that come from a web page (browser requests carry an Origin)', async () => {
+    const { b, url } = await start(true);
+    try {
+      const r = await fetch(url + '/run', { method: 'POST', headers: { origin: 'https://evil.example', 'content-type': 'application/json' }, body: '{}' });
+      expect(r.status).toBe(403);
+    } finally { await b.close(); }
+  });
+  it('reads Claude Code\'s JSON result: structured output, or JSON in the text (also in a code fence), and errors', () => {
+    expect(extractOutput(JSON.stringify({ structured_output: { suggestions: [] } })).output).toEqual({ suggestions: [] });
+    expect(extractOutput(JSON.stringify({ result: '```json\n{"suggestions":[]}\n```' })).output).toEqual({ suggestions: [] });
+    expect(() => extractOutput(JSON.stringify({ is_error: true, result: 'Not logged in' }))).toThrow(/Not logged in/);
+  });
+  it('finds a Claude Code program (or reports none)', () => {
+    expect(findClaude({ CLAUDE_BIN: '/nonexistent/claude', PATH: '' })).toBeNull();
+    expect(typeof (findClaude() ?? '')).toBe('string');
   });
 });

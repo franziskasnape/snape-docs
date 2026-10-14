@@ -5,6 +5,7 @@ import { todayInStudioZone } from './core/format';
 import { checkData, ensureIds } from './core/validate';
 import { upgrade } from './core/migrate';
 import { openapi } from './core/openapi';
+import { DEFAULT_BRIDGE_URL, resolveProvider } from './core/proofread';
 import { hostPage } from './core/render/host';
 
 import { documents } from './routes/documents';
@@ -42,7 +43,14 @@ app.post('/api/doctypes/:type/validate', async (c) => {
   return c.json({ valid: !issues, issues: issues ?? [] });
 });
 // Is proofreading set up? (the key itself is never exposed)
-app.get('/api/proofread/status', async (c) => c.json({ configured: !!c.env.ANTHROPIC_API_KEY, model: (await getSettings(c.env)).proofreadModel }));
+app.get('/api/proofread/status', async (c) => {
+  const st = await getSettings(c.env);
+  const provider = resolveProvider(st.proofreadProvider, !!c.env.ANTHROPIC_API_KEY);
+  if (provider === 'api') return c.json({ configured: !!c.env.ANTHROPIC_API_KEY, provider, model: st.proofreadModel });
+  let h: any = null;                                    // ask the local helper (it must be running and logged in)
+  try { h = await (await fetch(`${(c.env.CLAUDE_BRIDGE_URL ?? DEFAULT_BRIDGE_URL).replace(/\/$/, '')}/health`, { signal: AbortSignal.timeout(2500) })).json(); } catch { /* not running */ }
+  return c.json({ configured: !!h?.loggedIn, provider, model: 'local Claude', helperRunning: !!h, loggedIn: !!h?.loggedIn });
+});
 app.get('/api/openapi.json', (c) => c.json(openapi(new URL(c.req.url).origin)));
 
 // Errors are always JSON on /api: {error, code, ...}

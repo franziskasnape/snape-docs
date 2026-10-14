@@ -394,9 +394,9 @@ async function openProofread() {
     proofResult = await api(`/api/documents/${id}/proofread`, 'POST');
   } catch (e) {
     let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ }
-    $('#proofBody').innerHTML = j.code === 'not_configured'
-      ? '<p><b>Proofreading is not set up yet.</b></p><p class="hint">It needs an Anthropic API key (separate from a Claude subscription). Steps: docs/RUNNING.md, section “Proofreading”.</p>'
-      : `<p class="hint warn">${esc(j.error || e.message)}</p>`;
+    const first = ['bridge_down', 'not_logged_in', 'not_configured'].includes(j.code);
+    $('#proofBody').innerHTML = `<p class="hint warn">${esc(j.error || e.message)}</p>`
+      + (first ? '<p class="hint">First time? Setup (about 5 minutes, no extra cost): docs/RUNNING.md, section “Proofreading”.</p>' : '');
     return;
   }
   const r = proofResult;

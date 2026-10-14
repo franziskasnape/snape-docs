@@ -31,7 +31,7 @@ browser tab is visible (the layout engine pauses in hidden tabs).
 
 - **The editor UI is English; generated documents are German or English.** Printed labels are keys translated at
   render time (`src/doctypes/*/i18n.ts`); never hard-code German into `public/edit.js` or other UI text.
-- Proofreading (`src/core/proofread.ts`, official `@anthropic-ai/sdk`): suggestions only, never auto-applied; sends only `textFields` wording (no client data, numbers, private notes); the API key is the `ANTHROPIC_API_KEY` secret (`.dev.vars`), never in the database or repo.
+- Proofreading (`src/core/proofread.ts`, official `@anthropic-ai/sdk`): suggestions only, never auto-applied; sends only `textFields` wording (no client data, numbers, private notes); two providers: the API key (`ANTHROPIC_API_KEY` secret in `.dev.vars`, never in the database or repo) or the owner's own Claude login through `scripts/claude-bridge.mjs` (runs `claude -p` locally, no API cost); Settings picks, default auto.
 - Everything is drivable over HTTP: `docs/API.md`, `GET /api/openapi.json`, `npm run snape -- <command>`. Document data is defined and validated by the zod schema in `src/doctypes/offer/zod.ts` (types are derived from it) and the envelope in `src/core/envelope.ts`; saves carry `baseRev`. Read `docs/SCHEMA.md` before changing the data shape: breaking changes need a version bump, a migration and a new frozen fixture (a test enforces it).
 - Collection offers use the `objects` block (shared `defaultText`, per-row `text`); the PDF importer and loader are `scripts/import-object-pdf.mjs` / `load-offer-json.mjs` and write only under git-ignored `seed/`.
 - **Never type computed numbers** (hour totals, CHF). They come from `doctypes/offer/cost.ts` and the measures block.

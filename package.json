@@ -19,7 +19,8 @@
     "test": "vitest run --config vitest.config.js",
     "test:layout": "vitest run --config vitest.layout.config.js",
     "snape": "node scripts/snape.mjs",
-    "test:api": "vitest run --config vitest.api.config.js"
+    "test:api": "vitest run --config vitest.api.config.js",
+    "claude-bridge": "node scripts/claude-bridge.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.134.0",

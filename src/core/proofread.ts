@@ -7,7 +7,7 @@ export interface Suggestion { path: string; label: string; before: string; after
 export interface ProofreadResult { suggestions: Suggestion[]; checked: number; skipped: number; model: string; usage: { inputTokens: number; outputTokens: number } }
 
 export class ProofreadError extends Error {
-  constructor(public code: 'not_configured' | 'declined' | 'bad_key' | 'rate_limited' | 'upstream' | 'bad_response', message: string, public status = 502) { super(message); }
+  constructor(public code: 'not_configured' | 'declined' | 'bad_key' | 'rate_limited' | 'upstream' | 'bad_response' | 'bridge_down' | 'not_logged_in', message: string, public status = 502) { super(message); }
 }
 
 const replySchema = z.object({
@@ -44,18 +44,49 @@ export function acceptable(before: string, after: string): boolean {
   return after.trim() !== '' && after !== before && tagsOf(after) === tagsOf(before) && numbersOf(after) === numbersOf(before);
 }
 
-export async function proofread(opts: { apiKey: string | undefined; model: string; fields: TextField[]; lang: Lang; rules: string; baseURL?: string; fetch?: typeof fetch }): Promise<ProofreadResult> {
-  if (!opts.apiKey) throw new ProofreadError('not_configured', 'No Anthropic API key is set. See docs/RUNNING.md, "Proofreading".', 503);
-  const fields = opts.fields.filter((f) => f.text.trim());
-  if (!fields.length) return { suggestions: [], checked: 0, skipped: 0, model: opts.model, usage: { inputTokens: 0, outputTokens: 0 } };
+export type Provider = 'api' | 'local-claude';
 
+/** Which way to reach Claude: 'auto' uses the API when a key is set, otherwise the local helper (your own Claude login). */
+export function resolveProvider(setting: string, hasKey: boolean): Provider {
+  return setting === 'api' || (setting !== 'local-claude' && hasKey) ? 'api' : 'local-claude';
+}
+
+export const DEFAULT_BRIDGE_URL = 'http://127.0.0.1:8790';
+
+export interface ProofreadOptions { provider: Provider; apiKey: string | undefined; model: string; fields: TextField[]; lang: Lang; rules: string; baseURL?: string; bridgeURL?: string; fetch?: typeof fetch }
+
+export async function proofread(opts: ProofreadOptions): Promise<ProofreadResult> {
+  const fields = opts.fields.filter((f) => f.text.trim());
+  const empty = (model: string): ProofreadResult => ({ suggestions: [], checked: 0, skipped: 0, model, usage: { inputTokens: 0, outputTokens: 0 } });
+  if (opts.provider === 'api' && !opts.apiKey) throw new ProofreadError('not_configured', 'No Anthropic API key is set. See docs/RUNNING.md, "Proofreading".', 503);
+  if (!fields.length) return empty(opts.provider === 'api' ? opts.model : 'local Claude');
+
+  const system = systemPrompt(opts.lang, opts.rules);
+  const user = JSON.stringify(fields.map((f, i) => ({ n: i + 1, field: f.label, html: f.html, text: f.text })));
+  const { suggestions: raw, usage, model } = opts.provider === 'api' ? await viaApi(opts, system, user) : await viaBridge(opts, system, user);
+
+  const suggestions: Suggestion[] = []; let skipped = 0;
+  const seen = new Set<number>();
+  for (const s of raw) {
+    const f = fields[s.n - 1];
+    if (!f || seen.has(s.n)) { skipped++; continue; }
+    seen.add(s.n);
+    if (!acceptable(f.text, s.after)) { skipped++; continue; }
+    suggestions.push({ path: f.path, label: f.label, before: f.text, after: s.after, category: s.category, reason: s.reason, html: f.html });
+  }
+  return { suggestions, checked: fields.length, skipped, model, usage };
+}
+
+type Raw = z.infer<typeof replySchema>['suggestions'];
+interface Answer { suggestions: Raw; usage: { inputTokens: number; outputTokens: number }; model: string }
+
+async function viaApi(opts: ProofreadOptions, system: string, user: string): Promise<Answer> {
   const client = new Anthropic({ apiKey: opts.apiKey, ...(opts.baseURL ? { baseURL: opts.baseURL } : {}), ...(opts.fetch ? { fetch: opts.fetch } : {}) });
   let res;
   try {
     res = await client.messages.parse({
-      model: opts.model, max_tokens: 16000,
-      system: systemPrompt(opts.lang, opts.rules),
-      messages: [{ role: 'user', content: JSON.stringify(fields.map((f, i) => ({ n: i + 1, field: f.label, html: f.html, text: f.text }))) }],
+      model: opts.model, max_tokens: 16000, system,
+      messages: [{ role: 'user', content: user }],
       output_config: { format: zodOutputFormat(replySchema) },
     });
   } catch (e) {
@@ -66,15 +97,24 @@ export async function proofread(opts: { apiKey: string | undefined; model: strin
   }
   if (res.stop_reason === 'refusal') throw new ProofreadError('declined', 'The model declined to proofread this text.', 502);
   if (!res.parsed_output) throw new ProofreadError('bad_response', 'The model did not return a usable answer. Try again.', 502);
+  return { suggestions: res.parsed_output.suggestions, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens }, model: opts.model };
+}
 
-  const suggestions: Suggestion[] = []; let skipped = 0;
-  const seen = new Set<number>();
-  for (const s of res.parsed_output.suggestions) {
-    const f = fields[s.n - 1];
-    if (!f || seen.has(s.n)) { skipped++; continue; }
-    seen.add(s.n);
-    if (!acceptable(f.text, s.after)) { skipped++; continue; }
-    suggestions.push({ path: f.path, label: f.label, before: f.text, after: s.after, category: s.category, reason: s.reason, html: f.html });
+/** The local helper (scripts/claude-bridge.mjs) runs Claude Code with the owner's own login and returns the structured answer. */
+async function viaBridge(opts: ProofreadOptions, system: string, user: string): Promise<Answer> {
+  const f = opts.fetch ?? fetch, url = (opts.bridgeURL ?? DEFAULT_BRIDGE_URL).replace(/\/$/, '');
+  let r: Response;
+  try {
+    r = await f(`${url}/run`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ system, user, schema: z.toJSONSchema(replySchema, { target: 'draft-7', io: 'input' }) }) });
+  } catch {
+    throw new ProofreadError('bridge_down', 'The local Claude helper is not running. In a terminal in the project folder run:  npm run claude-bridge', 503);
   }
-  return { suggestions, checked: fields.length, skipped, model: opts.model, usage: { inputTokens: res.usage.input_tokens, outputTokens: res.usage.output_tokens } };
+  const j: any = await r.json().catch(() => ({}));
+  if (!r.ok) {
+    if (j.code === 'not_logged_in') throw new ProofreadError('not_logged_in', 'Claude Code on this computer is not logged in. Run the login once (see docs/RUNNING.md, "Proofreading without an API key").', 503);
+    throw new ProofreadError('upstream', `The local Claude helper failed: ${j.error ?? r.status}`, 502);
+  }
+  const parsed = replySchema.safeParse(j.output);
+  if (!parsed.success) throw new ProofreadError('bad_response', 'Claude did not return a usable answer. Try again.', 502);
+  return { suggestions: parsed.data.suggestions, usage: { inputTokens: j.usage?.input_tokens ?? 0, outputTokens: j.usage?.output_tokens ?? 0 }, model: 'local Claude' };
 }

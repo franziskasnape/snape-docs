@@ -127,7 +127,7 @@ you want the `workers.dev` address back.
 
 ### Proofreading key (optional)
 
-To use the Proofread button on the hosted app, store the key as a Cloudflare secret (never in the repository or the database):
+The local-login helper (`npm run claude-bridge`) only works on your own computer. To use the Proofread button on the hosted app you need an API key: store the key as a Cloudflare secret (never in the repository or the database):
 
 ```bash
 npx wrangler secret put ANTHROPIC_API_KEY
