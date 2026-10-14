@@ -4,7 +4,8 @@ import { needsUpgrade, upgrade } from '../core/migrate';
 import { todayInStudioZone } from '../core/format';
 import { hostPage } from '../core/render/host';
 import { getDocType, docTypes } from '../core/registry';
-import { checkData, ensureIds } from '../core/validate';
+import { checkData, ensureIds, snapshotProblems } from '../core/validate';
+import { checkEnvelope, documentCreate, documentWrite } from '../core/envelope';
 import { applyPatch, PatchError } from '../core/jsonpatch';
 import type { Lang } from '../core/types';
 
@@ -62,11 +63,13 @@ documents.post('/', async (c) => {
   const dt = getDocType(body.type ?? 'offer');
   if (!dt) return c.json({ error: `unknown type, expected one of ${Object.keys(docTypes)}`, code: 'unknown_type' }, 400);
   const lang = body.lang ?? settings.defaultLang;
-  if (lang !== 'de' && lang !== 'en') return c.json({ error: 'lang must be "de" or "en"', code: 'validation' }, 400);
-  if (body.status && !dt.statuses.includes(body.status)) return c.json({ error: `status must be one of ${dt.statuses.join(', ')}`, code: 'validation' }, 400);
+  const envelope = checkEnvelope(documentCreate(dt), body);
+  if (envelope) return c.json({ error: 'validation failed', code: 'validation', issues: envelope }, 422);
   // `data` may be partial: top-level keys replace the defaults, `meta` and `cost` are merged into them
   const base: any = dt.defaultData(lang, settings, today);
-  const data: any = ensureIds(body.data ? { ...base, ...body.data, meta: { ...base.meta, ...body.data.meta }, cost: { ...base.cost, ...body.data.cost } } : base);
+  const merged: any = body.data ? { ...base, ...body.data, meta: { ...base.meta, ...body.data.meta }, cost: { ...base.cost, ...body.data.cost } } : base;
+  if (body.data && body.data.v === undefined) merged.v = dt.schemaVersion;      // data written without a version is taken as the current one
+  const data: any = ensureIds(upgrade(dt, merged));
   const issues = checkData(dt, data);
   if (issues) return c.json({ error: 'validation failed', code: 'validation', issues }, 422);
   const number = await nextNumber(c.env, dt.prefix, new Date().getFullYear());
@@ -84,13 +87,13 @@ documents.get('/:id', async (c) => {
   if (!doc) return c.json({ error: 'not found' }, 404);
   const client = doc.client_id ? await c.env.DB.prepare('SELECT * FROM clients WHERE id = ?').bind(doc.client_id).first() : null;
   const art = doc.artwork_id ? await c.env.DB.prepare('SELECT fields FROM artworks WHERE id = ?').bind(doc.artwork_id).first<{ fields: string }>() : null;
-  const data = parseData(doc);
-  if (needsUpgrade(getDocType(doc.type), JSON.parse(doc.data))) {      // persist the upgrade on first open (does not count as an edit)
+  const dt = getDocType(doc.type), data = parseData(doc);
+  if (needsUpgrade(dt, JSON.parse(doc.data))) {      // persist the upgrade on first open (does not count as an edit)
     await c.env.DB.prepare('UPDATE documents SET data = ? WHERE id = ?').bind(JSON.stringify(data), doc.id).run();
   }
   return c.json({
     id: doc.id, type: doc.type, number: doc.number, lang: doc.lang, status: doc.status, title: doc.title,
-    clientId: doc.client_id, client, artwork: art ? JSON.parse(art.fields) : [], data, updatedAt: doc.updated_at, rev: doc.rev,
+    clientId: doc.client_id, client, artwork: art ? JSON.parse(art.fields) : [], data, schemaVersion: dt.schemaVersion, updatedAt: doc.updated_at, rev: doc.rev,
   });
 });
 
@@ -101,13 +104,13 @@ async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
   const dt = getDocType(doc.type);
   if (baseRev !== undefined && baseRev !== doc.rev)
     return c.json({ error: 'The document was changed by someone else since you read it. Read it again and redo the change.', code: 'conflict', rev: doc.rev, updatedAt: doc.updated_at }, 409);
+  const envelope = checkEnvelope(documentWrite(dt), b);
+  if (envelope) return c.json({ error: 'validation failed', code: 'validation', issues: envelope }, 422);
   if (b.data) {
     b.data = ensureIds(upgrade(dt, b.data));                // a stale editor tab may still send an older shape
     const issues = checkData(dt, b.data);
     if (issues) return c.json({ error: 'validation failed', code: 'validation', issues }, 422);   // never store data that cannot be printed properly
   }
-  if (b.status && !dt.statuses.includes(b.status)) return c.json({ error: `status must be one of ${dt.statuses.join(', ')}`, code: 'validation', issues: [{ path: 'status', message: `must be one of ${dt.statuses.join(', ')}` }] }, 422);
-  if (b.lang && b.lang !== 'de' && b.lang !== 'en') return c.json({ error: 'lang must be "de" or "en"', code: 'validation', issues: [{ path: 'lang', message: 'must be "de" or "en"' }] }, 422);
   // keep history: snapshot the state *before* this save on status changes, and as a periodic checkpoint
   if (b.status && b.status !== doc.status) await saveVersion(c.env, doc, 'status', `Status: ${doc.status} → ${b.status}`);
   else {
@@ -213,8 +216,10 @@ documents.get('/:id/versions/:vid', async (c) => {
   if (!v) return c.json({ error: 'not found' }, 404);
   const raw = JSON.parse(v.data), snapshot = raw.data ? raw : { data: raw };
   const doc = await getDocument(c.env, Number(c.req.param('id')));
-  snapshot.data = upgrade(getDocType(doc!.type), snapshot.data);          // old snapshots are upgraded on read, never rewritten
-  return c.json({ id: v.id, note: v.note, kind: v.kind, createdAt: v.created_at, snapshot });
+  const dt = getDocType(doc!.type);
+  snapshot.data = upgrade(dt, snapshot.data);                              // old snapshots are upgraded on read, never rewritten
+  const issues = snapshotProblems(dt, snapshot);
+  return c.json({ id: v.id, note: v.note, kind: v.kind, createdAt: v.created_at, snapshot, restorable: !issues, issues: issues ?? [] });
 });
 
 // Restore: the current state is saved first, so a restore can itself be undone
@@ -225,6 +230,8 @@ documents.post('/:id/versions/:vid/restore', async (c) => {
   if (!doc || !v) return c.json({ error: 'not found' }, 404);
   const raw = JSON.parse(v.data), snap = raw.data ? raw : { data: raw };
   snap.data = upgrade(getDocType(doc.type), snap.data);
+  const problems = snapshotProblems(getDocType(doc.type), snap);
+  if (problems) return c.json({ error: 'This version cannot be restored: it would not be a valid document.', code: 'not_restorable', issues: problems }, 422);
   await saveVersion(c.env, doc, 'restore', 'Saved automatically before a restore');
   await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, status = ?, client_id = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(snap.data), snap.title === undefined ? doc.title : snap.title, snap.status ?? doc.status, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();

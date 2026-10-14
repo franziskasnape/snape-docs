@@ -444,8 +444,8 @@ function renderHistDetail() {
     : rows.length ? `<p class="hint">Restoring this version would make ${rows.length} change${rows.length > 1 ? 's' : ''}. <del>Red</del> is what you have now and would disappear; <ins>green</ins> is what would appear.</p><ul class="diff">${rows.slice(0, 60).join('')}</ul>${rows.length > 60 ? `<p class="muted">…and ${rows.length - 60} more</p>` : ''}`
       : '<p class="hint">Identical to the current state.</p>';
   $('#histDetail').innerHTML = `<div class="hist-head"><h3>${title}</h3><div class="tabs2">${tabs}</div></div><div class="hist-body">${body}</div>
-    <div class="hist-foot"><button type="button" class="primary" id="restoreBtn" ${rows.length ? '' : 'disabled'}>Restore this version</button>
-    <span class="hint"> Your current state is saved as a version first, so you can undo a restore.</span></div>`;
+    <div class="hist-foot"><button type="button" class="primary" id="restoreBtn" ${rows.length && v.restorable !== false ? '' : 'disabled'}>Restore this version</button>
+    <span class="hint">${v.restorable === false ? 'This version cannot be restored: ' + esc((v.issues ?? []).slice(0, 2).map((i) => `${i.path} ${i.message}`).join('; ')) : ' Your current state is saved as a version first, so you can undo a restore.'}</span></div>`;
   histDlg.classList.toggle('wide', histTab === 'side');
   $('#restoreBtn').onclick = async () => {
     if (!confirm('Restore this version? The current state will be saved to the history first.')) return;

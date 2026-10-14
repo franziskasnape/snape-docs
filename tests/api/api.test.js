@@ -31,6 +31,11 @@ d('API', () => {
     expect((await call('/api/doctypes/offer/validate', 'POST', { data: ex.data })).json.valid).toBe(true);
     expect((await call('/api/doctypes')).json.map((t) => t.id)).toContain('offer');
     expect((await call('/api/nonsense')).json.code).toBe('not_found');
+    const t = (await call('/api/doctypes')).json.find((x) => x.id === 'offer');
+    expect(t.schemaVersion).toBeGreaterThanOrEqual(2);
+    expect(t.schemaChangelog).toHaveLength(t.schemaVersion - 1);
+    expect(schema['x-schemaVersion']).toBe(t.schemaVersion);
+    expect(ex.data.v).toBe(t.schemaVersion);
   });
 
   it('creates an offer with content in one call; ids are filled in; title and status are kept', async () => {
@@ -45,6 +50,7 @@ d('API', () => {
     expect(r.status).toBe(201);
     id = r.json.id; created.push(id); rev = r.json.rev;
     const doc = (await call(`/api/documents/${id}`)).json;
+    expect(doc.schemaVersion).toBe(doc.data.v);
     expect(doc.lang).toBe('en'); expect(doc.title).toBe('API test (invented)'); expect(doc.rev).toBe(0);
     expect(doc.data.rate).toBe(120);
     expect(doc.data.meta.validUntil).toBeTruthy();          // merged with the defaults
@@ -61,7 +67,11 @@ d('API', () => {
     expect((await call('/api/documents', 'POST', '{bad')).json.code).toBe('bad_json');
     expect((await call('/api/documents', 'POST', '[1]')).status).toBe(400);
     const put = await call(`/api/documents/${id}`, 'PUT', { status: 'banana' });
-    expect(put.status).toBe(422);
+    expect(put.status).toBe(422); expect(put.json.issues[0].path).toBe('status');
+    const typo = await call(`/api/documents/${id}`, 'PUT', { titel: 'x' });
+    expect(typo.status).toBe(422); expect(typo.json.issues[0].path).toBe('titel');
+    const newer = await call('/api/documents', 'POST', { data: { v: 99 } });
+    expect(newer.status).toBe(422); expect(newer.json.issues[0].path).toBe('data.v');
   });
 
   it('PATCH edits by block id, appends rows, bumps the revision, and the result is validated', async () => {
@@ -93,6 +103,8 @@ d('API', () => {
     const list = (await call(`/api/documents/${id}/versions`)).json;
     expect(list.some((v) => v.kind === 'status')).toBe(true);
     expect((await call(`/api/documents/${id}/versions`, 'POST', { note: 'api test' })).status).toBe(201);
+    const v = (await call(`/api/documents/${id}/versions/${list[0].id}`)).json;
+    expect(v.restorable).toBe(true); expect(v.issues).toEqual([]);
   });
 
   it('serves the document as HTML without the private notes', async () => {

@@ -2,7 +2,7 @@ import type { DocType, RenderContext } from '../../core/types';
 import { common } from '../../core/i18n';
 import { fmtDate, fmtLongDate } from '../../core/format';
 import { uid } from '../../core/migrate';
-import { offerMigrations } from './migrations';
+import { offerChangelog, offerMigrations } from './migrations';
 import { frame, type FrameOptions } from '../../core/render/frame';
 import { kv, note, overviewFigure, pageBreak, prose } from '../../core/render/blocks/basic';
 import { measures } from '../../core/render/blocks/measures';
@@ -91,6 +91,7 @@ export const offerType: DocType<OfferData> = {
   statuses: ['draft', 'sent', 'accepted', 'declined'],
   schemaVersion: 2,
   migrations: offerMigrations,
+  schemaChangelog: offerChangelog,
   schema: offerSchema,
   /** "Follow today's date": while a draft, the offer date is today's date and "valid until" keeps its distance from it. */
   refresh(d, status, today) {

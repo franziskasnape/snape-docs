@@ -4,7 +4,7 @@ import { rowFigures } from './basic';
 
 export interface MeasureRow {
   id?: string;
-  title: string; desc: string;
+  title: string; desc?: string;
   hoursMin: number; hoursMax?: number;
   images?: ImageRef[];
 }
@@ -31,7 +31,7 @@ export function sumHours(rows: { hoursMin: number; hoursMax?: number }[]): { min
 export function measures(ctx: RenderContext, b: MeasuresBlock, L: MeasureLabels): string {
   const numbered = b.kind === 'main';
   const rowHtml = (r: MeasureRow, i: number) => `<tr><td>${numbered ? i + 1 : '–'}</td><td>${rowFigures(ctx, r.images)}`
-    + `<span class="table-title">${esc(r.title)}</span><span class="table-desc">${esc(r.desc)}</span></td>`
+    + `<span class="table-title">${esc(r.title)}</span><span class="table-desc">${esc(r.desc ?? '')}</span></td>`
     + `<td class="num">${fmtHours(r.hoursMin, r.hoursMax)}</td></tr>`;
   const cols = '<colgroup><col style="width:9mm"><col><col style="width:36mm"></colgroup>';
   const thead = `<thead><tr><th></th><th>${esc(L.descCol)}</th><th class="num">${esc(L.hoursCol)}</th></tr></thead>`;

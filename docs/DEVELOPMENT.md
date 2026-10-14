@@ -123,6 +123,8 @@ public/diff.js               block-aware diff used by History
 
 ## Changing the shape of document data
 
+See **[SCHEMA.md](SCHEMA.md)** for the schema, the versioning rules, when a version bump is needed and the checklist (the notes below are the short version).
+
 Document `data` carries a schema version, `data.v` (missing means 1). The current version of a type is
 `schemaVersion` on its `DocType`; the offer is at **2** (v2 added stable ids).
 
@@ -153,7 +155,7 @@ Document `data` carries a schema version, `data.v` (missing means 1). The curren
 See [API.md](API.md). The pieces: `src/doctypes/offer/zod.ts` (the schema every save is checked against and the source of the published JSON Schema),
 `src/core/validate.ts` (checks and id filling), `src/core/jsonpatch.ts` (PATCH), `src/core/openapi.ts` (the OpenAPI description),
 `scripts/snape.mjs` (command line), `tests/api/` (end-to-end tests against a running app, `npm run test:api`).
-When you add a field to the offer data, add it to **both** `schema.ts` and `zod.ts`; a new endpoint needs an entry in `openapi.ts` and a test in `tests/api/`.
+The offer data types are derived from `zod.ts` (the one place to add a field); a new endpoint needs an entry in `openapi.ts` and a test in `tests/api/`.
 Every saving endpoint bumps `documents.rev`; the editor sends `baseRev` and shows "Changed elsewhere" on a 409.
 
 ## Private notes

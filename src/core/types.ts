@@ -31,6 +31,8 @@ export interface DocType<D = unknown> {
   /** Current shape of `data`; older data is upgraded by `migrations` when loaded (see core/migrate.ts) */
   schemaVersion: number;
   migrations: ((d: any) => any)[];
+  /** One line per migration (index i = what version i+2 changed); shown by GET /api/doctypes and kept in step by a test */
+  schemaChangelog: string[];
   /** Initial `data` for a new document; `today` is ISO yyyy-mm-dd */
   defaultData(lang: Lang, settings: Settings, today: string): D;
   /** Default Objekt lines for a new document */

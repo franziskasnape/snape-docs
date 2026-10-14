@@ -26,6 +26,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 | Guide | What's in it |
 | --- | --- |
 | [docs/RUNNING.md](docs/RUNNING.md) | Install, start/stop, where your data lives, backup and restore, troubleshooting |
+| [docs/SCHEMA.md](docs/SCHEMA.md) | **Document schema and versioning**: what is validated, when to bump the version, migrations and frozen samples |
 | [docs/API.md](docs/API.md) | **HTTP API and command line for scripts and AI agents**: OpenAPI, JSON Schema, JSON Patch, conflict detection |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Deploy to Cloudflare, protect it with a login, move your data, update later |
 | [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | Architecture, **tests**, adding a document type, changing the data shape, conventions |

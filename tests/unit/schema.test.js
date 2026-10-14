@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { z } from 'zod';
 import { offerSchema } from '../../src/doctypes/offer/zod';
 import { offerType } from '../../src/doctypes/offer/render';
-import { checkData, ensureIds } from '../../src/core/validate';
+import { checkData, ensureIds, snapshotProblems } from '../../src/core/validate';
+import { checkEnvelope, documentCreate, documentWrite } from '../../src/core/envelope';
 import { openapi } from '../../src/core/openapi';
 import { makeCollectionOffer, makeOffer } from '../layout/fixtures.js';
 
@@ -48,5 +49,37 @@ describe('offer schema', () => {
     expect(api.openapi).toBe('3.1.0');
     expect(api.components.schemas.offerData.properties.cost).toBeTruthy();
     expect(Object.keys(api.paths)).toEqual(expect.arrayContaining(['/api/documents', '/api/documents/{id}', '/api/images', '/api/doctypes/{type}/schema']));
+  });
+});
+
+describe('document envelope', () => {
+  const dt = offerType;
+  it('accepts any subset of the writable fields', () => {
+    expect(checkEnvelope(documentWrite(dt), { title: 'x', status: 'sent', lang: 'en', clientId: null, artwork: [{ k: 'a', v: 'b' }], baseRev: 3 })).toBeNull();
+    expect(checkEnvelope(documentWrite(dt), {})).toBeNull();
+  });
+  it('names a bad status, language, artwork line and unknown field', () => {
+    const issues = checkEnvelope(documentWrite(dt), { status: 'banana', lang: 'fr', artwork: [{ k: 1 }], titel: 'typo' });
+    const paths = issues.map((i) => i.path);
+    expect(paths).toEqual(expect.arrayContaining(['status', 'lang', 'artwork.0.k', 'artwork.0.v', 'titel']));
+  });
+  it('create accepts type, duplicateOf and data', () => {
+    expect(checkEnvelope(documentCreate(dt), { type: 'offer', lang: 'de', data: { anything: 1 } })).toBeNull();
+    expect(checkEnvelope(documentCreate(dt), { duplicateOf: 'x' })).not.toBeNull();
+  });
+});
+
+describe('restoring a history snapshot', () => {
+  const dt = offerType;
+  it('is possible for a valid snapshot, also an old one without the envelope fields', () => {
+    const data = makeOffer({ seed: 1, rows: 2 });
+    expect(snapshotProblems(dt, { title: 'x', status: 'draft', clientId: 1, artwork: [], data })).toBeNull();
+    expect(snapshotProblems(dt, { data })).toBeNull();
+  });
+  it('is refused when the data would not be a valid document, with the paths', () => {
+    const data = makeOffer({ seed: 1, rows: 2 }); data.blocks[2].rows[0].hoursMin = null;
+    const issues = snapshotProblems(dt, { data });
+    expect(issues.map((i) => i.path)).toContain('data.blocks.2.rows.0.hoursMin');
+    expect(snapshotProblems(dt, { status: 'banana', data: makeOffer({ seed: 2 }) }).map((i) => i.path)).toContain('status');
   });
 });

@@ -4,6 +4,8 @@
  * Ids for old data are derived from position (b1, b1-r2, b1-r2-p1) so that the same stored
  * document always upgrades to the same ids, wherever it is read.
  */
+export const offerChangelog = ['v2: blocks, treatment rows and row photos have stable ids (history can tell "moved" from "edited")'];
+
 export const offerMigrations: ((d: any) => any)[] = [
   (d) => {
     (d.blocks ?? []).forEach((b: any, i: number) => {

@@ -1,0 +1,136 @@
+{
+  "v": 2,
+  "meta": {
+    "date": "2026-10-04",
+    "validUntil": "2027-01-02",
+    "dateAuto": true,
+    "title": "Beispiel",
+    "eyebrow": "Angebot"
+  },
+  "overview": {
+    "imageId": 1,
+    "caption": "Gesamtansicht",
+    "note": "Beispiel",
+    "layout": "auto"
+  },
+  "blocks": [
+    {
+      "id": "a1",
+      "type": "note",
+      "label": "hinweis",
+      "html": "Erfundener Hinweis."
+    },
+    {
+      "id": "a2",
+      "type": "prose",
+      "heading": "Allgemeine Massnahmen",
+      "paragraphs": [
+        "Einleitung."
+      ],
+      "bullets": [
+        "Erster Punkt",
+        "Zweiter Punkt"
+      ]
+    },
+    {
+      "id": "a3",
+      "type": "prose",
+      "headingKey": "condition",
+      "paragraphs": [
+        "Zustand."
+      ]
+    },
+    {
+      "id": "a4",
+      "type": "measures",
+      "kind": "main",
+      "option": "Option A",
+      "rows": [
+        {
+          "id": "a4r1",
+          "title": "Reinigung",
+          "desc": "Trocken.",
+          "hoursMin": 2,
+          "hoursMax": 3,
+          "images": [
+            {
+              "id": "a4r1p1",
+              "imageId": 2,
+              "caption": "Detail"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "a5",
+      "type": "measures",
+      "kind": "main",
+      "option": "Grundmassnahmen",
+      "common": true,
+      "rows": [
+        {
+          "id": "a5r1",
+          "title": "Dokumentation",
+          "hoursMin": 1
+        }
+      ]
+    },
+    {
+      "id": "a6",
+      "type": "measures",
+      "kind": "optional",
+      "rows": [
+        {
+          "id": "a6r1",
+          "title": "Firnis",
+          "desc": "Neu.",
+          "hoursMin": 1
+        }
+      ]
+    },
+    {
+      "id": "a7",
+      "type": "objects",
+      "heading": "Objekte",
+      "defaultText": "Erfundener gemeinsamer Text.",
+      "rows": [
+        {
+          "id": "a7r1",
+          "no": "001",
+          "title": "Erstes Objekt",
+          "technique": "Druckgrafik",
+          "size": "",
+          "hoursMin": 1.5,
+          "hoursMax": 2.5,
+          "imageId": 3
+        },
+        {
+          "id": "a7r2",
+          "no": "002",
+          "title": "Zweites Objekt",
+          "size": "30 × 40 cm",
+          "text": "Eigener Text.",
+          "hoursMin": 2
+        }
+      ]
+    },
+    {
+      "id": "a8",
+      "type": "pagebreak"
+    }
+  ],
+  "cost": {
+    "deliveryFrom": "2026-11-02",
+    "pickupFrom": "2026-12-01",
+    "materials": true,
+    "optionalDetail": "Firnis",
+    "style": "text"
+  },
+  "rate": 100,
+  "sign": {
+    "enabled": true,
+    "place": "Wollerau"
+  },
+  "privateNotes": "<ul><li>Erfundene Notiz</li></ul>"
+}

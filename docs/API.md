@@ -23,7 +23,8 @@ An agent should start with `GET /api/openapi.json`, then `GET /api/doctypes/offe
 - **Photos** are uploaded first (`POST /api/images`, raw JPEG/PNG bytes, resize to about 1600 px before), then referenced by `imageId`.
 - `privateNotes` (small HTML) is the owner's private notes. It is never printed or exported.
 - **Revisions:** every document has `rev`, which goes up by one on every save. Send the `rev` you read as `baseRev` in the body (or `If-Match: <rev>`); if someone else saved in between you get **409** instead of overwriting their work. The editor does this too, so an agent and a person can work on the same offer without clobbering each other.
-- Every save is validated against the schema. Errors are always JSON: `{"error", "code", "issues":[{"path","message"}]}` with codes `validation` (422), `conflict` (409), `patch_failed` (400, with `opIndex`), `bad_request`, `bad_json`, `not_found`, `in_use`.
+- Every save is validated against the schema (envelope: [src/core/envelope.ts](../src/core/envelope.ts), data: `GET /api/doctypes/offer/schema`; versioning rules in [SCHEMA.md](SCHEMA.md)). Documents carry `schemaVersion`; data you send is upgraded to it, data newer than the app is refused. Unknown top-level fields are refused (a typo cannot silently do nothing). A history version can be restored only if it validates: `GET …/versions/:vid` says (`restorable`, `issues`).
+- Errors are always JSON: `{"error", "code", "issues":[{"path","message"}]}` with codes `validation` (422), `conflict` (409), `patch_failed` (400, with `opIndex`), `bad_request`, `bad_json`, `not_found`, `in_use`, `not_restorable` (422).
 
 ## Typical flows
 

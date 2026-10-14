@@ -20,11 +20,11 @@ app.route('/api/clients', clients);
 app.route('/api/images', images);
 app.route('/api/snippets', snippets);
 app.route('/api/settings', settings);
-app.get('/api/doctypes', (c) => c.json(Object.values(docTypes).map(({ id, prefix, labels, statuses }) => ({ id, prefix, labels, statuses }))));
+app.get('/api/doctypes', (c) => c.json(Object.values(docTypes).map(({ id, prefix, labels, statuses, schemaVersion, schemaChangelog }) => ({ id, prefix, labels, statuses, schemaVersion, schemaChangelog }))));
 app.get('/api/doctypes/:type/schema', (c) => {
   const dt = getDocType(c.req.param('type'));
   if (!dt?.schema) return c.json({ error: 'unknown document type', code: 'not_found' }, 404);
-  return c.json(z.toJSONSchema(dt.schema, { target: 'draft-2020-12', io: 'input' }));
+  return c.json({ ...z.toJSONSchema(dt.schema, { target: 'draft-2020-12', io: 'input' }), title: `${dt.id} data`, 'x-schemaVersion': dt.schemaVersion, 'x-changelog': dt.schemaChangelog });
 });
 app.get('/api/doctypes/:type/example', async (c) => {
   const dt = getDocType(c.req.param('type'));

@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { docTypes } from './registry';
+import { artworkLine, documentCreate, documentRead, documentWrite } from './envelope';
 
 /** The OpenAPI description of the HTTP API (GET /api/openapi.json). Document `data` schemas come from the document types themselves. */
 export function openapi(origin: string) {
@@ -9,6 +10,8 @@ export function openapi(origin: string) {
   const idParam = { name: 'id', in: 'path', required: true, schema: { type: 'integer' } };
   const rev = { name: 'If-Match', in: 'header', required: false, description: 'Revision you last read (the `rev` field). The save is refused with 409 if the document changed since. Same as `baseRev` in the body.', schema: { type: 'integer' } };
 
+  const gen = (schema: z.ZodType, io: 'input' | 'output' = 'input') => { const j: any = z.toJSONSchema(schema, { target: 'draft-2020-12', io }); delete j.$schema; return j; };
+  const offer = docTypes.offer;
   const dataSchemas: Record<string, unknown> = {};
   for (const t of Object.values(docTypes)) if (t.schema) dataSchemas[`${t.id}Data`] = z.toJSONSchema(t.schema, { target: 'draft-2020-12', io: 'input' });
 
@@ -87,15 +90,15 @@ export function openapi(origin: string) {
     components: {
       schemas: {
         Error: { type: 'object', required: ['error'], properties: { error: { type: 'string' }, code: { type: 'string', description: 'validation, conflict, not_found, patch_failed, bad_request, bad_json, internal' }, issues: { type: 'array', items: { type: 'object', properties: { path: { type: 'string' }, message: { type: 'string' } } } }, opIndex: { type: 'integer' }, rev: { type: 'integer' } } },
-        DocType: { type: 'object', properties: { id: { type: 'string' }, prefix: { type: 'string' }, labels: { type: 'object' }, statuses: { type: 'array', items: { type: 'string' } } } },
+        DocType: { type: 'object', properties: { id: { type: 'string' }, prefix: { type: 'string' }, labels: { type: 'object' }, statuses: { type: 'array', items: { type: 'string' } }, schemaVersion: { type: 'integer', description: 'current version of the document data; older data is upgraded on read' }, schemaChangelog: { type: 'array', items: { type: 'string' } } } },
         PatchOp: { type: 'object', required: ['op', 'path'], properties: { op: { enum: ['add', 'replace', 'remove', 'move', 'copy', 'test'] }, path: { type: 'string' }, from: { type: 'string' }, value: {} } },
         Saved: { type: 'object', properties: { ok: { type: 'boolean' }, rev: { type: 'integer', description: 'the new revision' }, updatedAt: { type: 'string' } } },
         Client: { type: 'object', required: ['name'], properties: { id: { type: 'integer' }, name: { type: 'string' }, address: { type: 'string' }, contact: { type: 'string' }, phone: { type: 'string' }, email: { type: 'string' } } },
-        ArtworkLine: { type: 'object', required: ['k', 'v'], properties: { k: { type: 'string', description: 'label, e.g. "Titel"' }, v: { type: 'string' } } },
-        NewDocument: { type: 'object', properties: { type: { type: 'string', default: 'offer' }, lang: { enum: ['de', 'en'] }, title: { type: 'string' }, status: { type: 'string' }, clientId: { type: 'integer' }, artwork: { type: 'array', items: ref('ArtworkLine') }, data: { description: 'document type specific, see /api/doctypes/{type}/schema; may be partial' }, duplicateOf: { type: 'integer', description: 'copy this document instead (other fields are ignored)' } } },
+        ArtworkLine: gen(artworkLine),
+        NewDocument: gen(documentCreate(offer)),
         DocumentSummary: { type: 'object', properties: { id: { type: 'integer' }, type: { type: 'string' }, number: { type: 'string' }, lang: { enum: ['de', 'en'] }, status: { type: 'string' }, title: { type: ['string', 'null'] }, client: { type: ['string', 'null'] }, client_id: { type: ['integer', 'null'] }, updated_at: { type: 'string' }, rev: { type: 'integer' } } },
-        Document: { type: 'object', properties: { id: { type: 'integer' }, type: { type: 'string' }, number: { type: 'string' }, lang: { enum: ['de', 'en'] }, status: { type: 'string' }, title: { type: ['string', 'null'] }, clientId: { type: ['integer', 'null'] }, client: { type: ['object', 'null'] }, artwork: { type: 'array', items: ref('ArtworkLine') }, data: { description: 'see /api/doctypes/{type}/schema' }, updatedAt: { type: 'string' }, rev: { type: 'integer', description: 'send back as baseRev / If-Match when saving' } } },
-        DocumentWrite: { type: 'object', properties: { title: { type: 'string' }, status: { type: 'string' }, lang: { enum: ['de', 'en'] }, clientId: { type: ['integer', 'null'] }, artwork: { type: 'array', items: ref('ArtworkLine') }, data: {}, baseRev: { type: 'integer' } } },
+        Document: gen(documentRead(offer), 'output'),
+        DocumentWrite: gen(documentWrite(offer)),
         ...dataSchemas,
       },
     },

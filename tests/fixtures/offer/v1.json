@@ -1,0 +1,84 @@
+{
+  "meta": {
+    "date": "2026-10-02",
+    "validUntil": "2026-12-31",
+    "title": "Kostenvoranschlag (Beispiel)"
+  },
+  "overview": {
+    "imageId": 1,
+    "caption": "Gesamtansicht",
+    "note": "Beispiel"
+  },
+  "blocks": [
+    {
+      "type": "prose",
+      "headingKey": "artist",
+      "paragraphs": [
+        "Erfundener Text über einen erfundenen Künstler."
+      ]
+    },
+    {
+      "type": "prose",
+      "headingKey": "condition",
+      "paragraphs": [
+        "Erster Absatz.",
+        "Zweiter Absatz."
+      ]
+    },
+    {
+      "type": "measures",
+      "kind": "main",
+      "rows": [
+        {
+          "title": "Reinigung",
+          "desc": "Trockenreinigung.",
+          "hoursMin": 2,
+          "hoursMax": 3,
+          "images": [
+            {
+              "imageId": 2,
+              "caption": "Detail"
+            },
+            {
+              "imageId": 3
+            }
+          ]
+        },
+        {
+          "title": "Retusche",
+          "desc": "",
+          "hoursMin": 1
+        }
+      ]
+    },
+    {
+      "type": "measures",
+      "kind": "optional",
+      "rows": [
+        {
+          "title": "Firnis",
+          "desc": "Neuauftrag.",
+          "hoursMin": 1,
+          "hoursMax": 2
+        }
+      ]
+    },
+    {
+      "type": "note",
+      "label": "hinweis",
+      "html": "Erfundener <strong>Hinweis</strong>."
+    },
+    {
+      "type": "pagebreak"
+    }
+  ],
+  "cost": {
+    "deliveryFrom": "2026-11-02",
+    "materials": true
+  },
+  "rate": 100,
+  "sign": {
+    "enabled": true,
+    "place": "Wollerau"
+  }
+}
