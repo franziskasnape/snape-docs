@@ -41,6 +41,8 @@ app.post('/api/doctypes/:type/validate', async (c) => {
   const issues = checkData(dt, ensureIds(upgrade(dt, body?.data ?? body)));
   return c.json({ valid: !issues, issues: issues ?? [] });
 });
+// Is proofreading set up? (the key itself is never exposed)
+app.get('/api/proofread/status', async (c) => c.json({ configured: !!c.env.ANTHROPIC_API_KEY, model: (await getSettings(c.env)).proofreadModel }));
 app.get('/api/openapi.json', (c) => c.json(openapi(new URL(c.req.url).origin)));
 
 // Errors are always JSON on /api: {error, code, ...}

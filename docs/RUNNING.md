@@ -64,6 +64,24 @@ under it: the background and that line are removed, the picture is cropped, and 
 last page of every offer, next to "Wollerau, <offer date>". Per offer you can switch it off or change the place (editor, *Signature*).
 The image stays in your database and backups only; never put it in the code repository.
 
+## 2c. Proofreading (optional)
+
+The editor's **Proofread** button sends the offer's wording to Claude and shows correction suggestions; nothing changes until you tick and apply them.
+Spelling is also checked while you type: every text field is marked with the offer's language.
+
+**What is sent:** only the typed wording (text sections, notes, treatment titles and descriptions, object titles and texts, captions), plus the house rules from **Settings**.
+**Never sent:** client names and addresses, prices, hours, dates, your private notes.
+
+**Setup (once):** the Anthropic API is billed separately from a Claude subscription (Pro/Max does not include API use).
+
+1. Go to <https://console.anthropic.com>, sign in (it can be the same email) and add a little credit under *Billing* (a few dollars lasts a long time). Set a monthly spend limit there if you like.
+2. *API keys* → create a key and copy it (it starts with `sk-ant-`).
+3. In the project folder, copy `.dev.vars.example` to `.dev.vars` and paste the key after `ANTHROPIC_API_KEY=`. The file is git-ignored and never leaves your Mac.
+4. Restart the app (`Ctrl+C`, then `npm run dev`). **Settings → Proofreading** should now say *Ready*.
+
+**Cost:** with the default model about 5–15 cents for a typical offer, more for a 40-object list. *Settings → Model* can be changed to a cheaper model (for example `claude-sonnet-5-5`). The key is never stored in the database, so it is not in backups.
+**House rules and glossary** (Swiss spelling, tone, studio vocabulary) are in **Settings**; add terms the proofreader should leave alone.
+
 ## 3. Pages
 
 | Address | What it is |

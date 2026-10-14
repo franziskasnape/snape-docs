@@ -21,7 +21,10 @@ export interface RenderContext {
   signature?: { src: string; place: string; baseline: number };
 }
 
-export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang; signatureImageId: number | null; signaturePlace: string; signatureBaseline: number }
+/** One piece of wording a proofreader may check (see doctypes/offer/text.ts) */
+export interface TextField { path: string; text: string; label: string; html: boolean }
+
+export interface Settings { hourlyRate: number; validityDays: number; defaultLang: Lang; signatureImageId: number | null; signaturePlace: string; signatureBaseline: number; proofreadRules: string; proofreadModel: string }
 
 export interface DocType<D = unknown> {
   id: string;
@@ -46,4 +49,6 @@ export interface DocType<D = unknown> {
   render(data: D, ctx: RenderContext, opts?: { cssHref?: string; inlineCss?: string; sealSrc?: string }): string;
   /** Generated default text of the computed cost paragraph, if the type has one (editor 'edit manually') */
   costText?(data: D, lang: Lang): string;
+  /** The wording of a document that can be proofread (never private notes, numbers or client data) */
+  textFields?(data: D): TextField[];
 }

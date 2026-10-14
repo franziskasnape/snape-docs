@@ -22,6 +22,13 @@
     <p class="hint">Existing documents keep their own rate and dates; these only apply to new documents.</p>
   </fieldset>
   <fieldset>
+    <legend>Proofreading (Claude)</legend>
+    <p id="proofStatus" class="hint">Checking…</p>
+    <label class="field">House rules and glossary (sent with every proofread; one rule or term per line)<textarea id="rules" rows="12"></textarea></label>
+    <label class="field">Model<input id="model" placeholder="claude-opus-5-5"></label>
+    <p class="hint">Only the wording of the offer is sent: never client names or addresses, prices, hours, dates or your private notes. A key can be set up in docs/RUNNING.md (“Proofreading”); it is never stored in the database or the code.</p>
+  </fieldset>
+  <fieldset>
     <legend>Signature</legend>
     <p class="hint">Printed on the contractor line of the last page of every offer (together with the place and the offer date). Stored only in your own database and backups, never in the code repository.</p>
     <div id="sigPreview" style="min-height:70px;border:1px dashed #cfc7ba;border-radius:6px;padding:8px;display:flex;align-items:center;margin-bottom:10px;background:#fff"><span class="muted">No signature uploaded yet</span></div>
@@ -39,7 +46,8 @@ function showSig(s) {
   $('#sigPreview').innerHTML = s.signatureImageId ? `<img src="/img/${s.signatureImageId}?t=${Date.now()}" alt="Signature" style="max-height:60px;max-width:100%">` : '<span class="muted">No signature uploaded yet</span>';
   $('#sigRemove').hidden = !s.signatureImageId;
 }
-(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; $('#place').value = s.signaturePlace; showSig(s); })();
+(async () => { const s = await api('GET'); $('#rate').value = s.hourlyRate; $('#days').value = s.validityDays; $('#lang').value = s.defaultLang; $('#place').value = s.signaturePlace; $('#rules').value = s.proofreadRules; $('#model').value = s.proofreadModel; showSig(s); })();
+(async () => { const p = await (await fetch('/api/proofread/status')).json(); $('#proofStatus').innerHTML = p.configured ? '<b>Ready:</b> an Anthropic API key is set.' : '<b>Not set up:</b> no Anthropic API key found. The Proofread button explains what to do.'; })();
 
 // Upload: remove the paper background and any baked-in baseline, crop to the ink, keep it as a transparent PNG
 $('#sigFile').addEventListener('change', async (e) => {
@@ -60,9 +68,9 @@ $('#sigFile').addEventListener('change', async (e) => {
 });
 $('#sigRemove').addEventListener('click', async () => { if (confirm('Remove the signature image?')) { showSig(await api('PUT', { signatureImageId: null })); $('#state').textContent = 'Saved'; } });
 let t;
-document.querySelectorAll('input,select').forEach((el) => el.addEventListener('input', () => {
+document.querySelectorAll('input,select,textarea').forEach((el) => el.addEventListener('input', () => {
   $('#state').textContent = 'Saving…'; clearTimeout(t);
-  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value, signaturePlace: $('#place').value }); $('#state').textContent = 'Saved'; }, 600);
+  t = setTimeout(async () => { await api('PUT', { hourlyRate: Number($('#rate').value), validityDays: Number($('#days').value), defaultLang: $('#lang').value, signaturePlace: $('#place').value, proofreadRules: $('#rules').value, proofreadModel: $('#model').value }); $('#state').textContent = 'Saved'; }, 600);
 }));
 </script>
 </body>

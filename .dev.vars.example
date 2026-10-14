@@ -1,0 +1,3 @@
+# Copy to .dev.vars (git-ignored) and fill in. Restart `npm run dev` afterwards.
+# Needed only for the Proofread button. A key from console.anthropic.com (not the Claude subscription).
+ANTHROPIC_API_KEY=sk-ant-...

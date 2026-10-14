@@ -7,6 +7,7 @@ import { getDocType, docTypes } from '../core/registry';
 import { checkData, ensureIds, snapshotProblems } from '../core/validate';
 import { checkEnvelope, documentCreate, documentWrite } from '../core/envelope';
 import { applyPatch, PatchError } from '../core/jsonpatch';
+import { proofread, ProofreadError } from '../core/proofread';
 import type { Lang } from '../core/types';
 
 export const documents = new Hono<{ Bindings: Env }>();
@@ -185,6 +186,22 @@ documents.post('/cost-text', async (c) => {
   const b = await c.req.json<any>();
   const dt = getDocType(b.type ?? 'offer');
   return c.json({ html: dt.costText?.(upgrade(dt, b.data), b.lang) ?? '' });
+});
+
+// Proofread the wording with Claude. Returns suggestions only: nothing is changed. Apply the ones you accept with PATCH (paths are PATCH paths).
+documents.post('/:id/proofread', async (c) => {
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
+  if (!doc) return c.json({ error: 'not found', code: 'not_found' }, 404);
+  const dt = getDocType(doc.type);
+  if (!dt.textFields) return c.json({ error: 'this document type cannot be proofread', code: 'unsupported' }, 400);
+  const st = await getSettings(c.env);
+  try {
+    const result = await proofread({ apiKey: c.env.ANTHROPIC_API_KEY, model: st.proofreadModel, fields: dt.textFields(ensureIds(parseData(doc))), lang: doc.lang, rules: st.proofreadRules, baseURL: c.env.ANTHROPIC_BASE_URL });
+    return c.json({ ...result, rev: doc.rev });
+  } catch (e) {
+    if (e instanceof ProofreadError) return c.json({ error: e.message, code: e.code }, e.status as 429 | 502 | 503);
+    throw e;
+  }
 });
 
 // The document itself as script-free HTML (A4 flow, house design), images as absolute URLs: for previews, checks or other renderers

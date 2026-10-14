@@ -125,6 +125,14 @@ To deploy without any public address, set this in `wrangler.jsonc` before the fi
 The Worker then has no reachable address until you attach a custom domain (option B). Remove these two lines later if
 you want the `workers.dev` address back.
 
+### Proofreading key (optional)
+
+To use the Proofread button on the hosted app, store the key as a Cloudflare secret (never in the repository or the database):
+
+```bash
+npx wrangler secret put ANTHROPIC_API_KEY
+```
+
 ## 7. Updating later
 
 Whenever the code changes (new features, bug fixes):

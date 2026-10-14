@@ -32,8 +32,8 @@ const SECTIONS = { artist: { de: 'Zum Künstler und Werk', en: 'About the Artist
 const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', objects: 'Object list', pagebreak: 'Page break' };
 
 // ---- form builders ----
-const input = (path, label, opts = {}) => `<label class="field">${label}<input data-path="${path}" ${opts.type ? `type="${opts.type}"${opts.type === 'number' ? ` data-num="1" step="${opts.step ?? 'any'}"` : ''}` : ''} value="${esc(get(path))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}></label>`;
-const area = (path, label, rows = 3) => `<label class="field">${label}<textarea data-path="${path}" rows="${rows}">${esc(get(path))}</textarea></label>`;
+const input = (path, label, opts = {}) => `<label class="field">${label}<input data-path="${path}" lang="${doc.lang}" spellcheck="true" ${opts.type ? `type="${opts.type}"${opts.type === 'number' ? ` data-num="1" step="${opts.step ?? 'any'}"` : ''}` : ''} value="${esc(get(path))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}></label>`;
+const area = (path, label, rows = 3) => `<label class="field">${label}<textarea data-path="${path}" lang="${doc.lang}" spellcheck="true" rows="${rows}">${esc(get(path))}</textarea></label>`;
 const btn = (act, attrs, text, cls = 'mini') => `<button type="button" class="${cls}" data-act="${act}" ${attrs}>${text}</button>`;
 const mover = (arr, i) => '<span class="movers">' + btn('move', `data-arr="${arr}" data-i="${i}" data-dir="-1"`, '↑') + btn('move', `data-arr="${arr}" data-i="${i}" data-dir="1"`, '↓') + btn('del', `data-arr="${arr}" data-i="${i}"`, '✕', 'mini danger') + '</span>';
 
@@ -371,6 +371,55 @@ function insertBeforeTable(block) {
   const bl = doc.data.blocks, at = bl.findIndex((b) => b.type === 'measures' && b.kind === 'main');
   bl.splice(at < 0 ? bl.length : at, 0, block);
 }
+
+// ---- proofread (Claude): suggestions only, you accept each one ----
+const proofDlg = $('#proofDlg');
+const plain = (h) => h.replace(/<[^>]+>/g, '');
+let proofResult = null;
+/** Find the array item / object a pointer like /data/blocks/@ab12cd34/rows/@ef56/title leads to. */
+function pointerTarget(path) {
+  const segs = path.split('/').slice(1).map((s) => s.replace(/~1/g, '/').replace(/~0/g, '~'));
+  let cur = doc;
+  for (const s of segs.slice(0, -1)) {
+    cur = Array.isArray(cur) && s.startsWith('@') ? cur.find((x) => x?.id === s.slice(1)) : cur?.[s];
+    if (cur == null) return null;
+  }
+  return { parent: cur, key: segs[segs.length - 1] };
+}
+async function openProofread() {
+  proofDlg.showModal(); $('#proofApply').hidden = true; $('#proofNote').textContent = '';
+  $('#proofBody').innerHTML = '<p class="hint">Checking the wording with Claude… this takes about half a minute.</p>';
+  try {
+    await save();
+    proofResult = await api(`/api/documents/${id}/proofread`, 'POST');
+  } catch (e) {
+    let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ }
+    $('#proofBody').innerHTML = j.code === 'not_configured'
+      ? '<p><b>Proofreading is not set up yet.</b></p><p class="hint">It needs an Anthropic API key (separate from a Claude subscription). Steps: docs/RUNNING.md, section “Proofreading”.</p>'
+      : `<p class="hint warn">${esc(j.error || e.message)}</p>`;
+    return;
+  }
+  const r = proofResult;
+  $('#proofNote').textContent = `${r.checked} text fields checked · ${r.usage.inputTokens + r.usage.outputTokens} tokens`;
+  if (!r.suggestions.length) { $('#proofBody').innerHTML = '<p>No corrections suggested.</p>' + (r.skipped ? `<p class="hint">${r.skipped} suggestion${r.skipped > 1 ? 's were' : ' was'} discarded because ${r.skipped > 1 ? 'they' : 'it'} would have changed numbers or formatting.</p>` : ''); return; }
+  $('#proofBody').innerHTML = `<p class="hint">${r.suggestions.length} suggestion${r.suggestions.length > 1 ? 's' : ''}. Untick any you do not want. <del>Red</del> is removed, <ins>green</ins> is added.</p><ul class="diff">`
+    + r.suggestions.map((s, i) => `<li><span class="tag">${esc(s.category)}</span><span class="where"><label><input type="checkbox" data-sug="${i}" checked> ${esc(s.label)}</label></span><div class="what">${DocDiff.wordDiff(plain(s.before), plain(s.after))}<div class="hint">${esc(s.reason)}</div></div></li>`).join('') + '</ul>'
+    + (r.skipped ? `<p class="hint">${r.skipped} further suggestion${r.skipped > 1 ? 's were' : ' was'} discarded because ${r.skipped > 1 ? 'they' : 'it'} would have changed numbers or formatting.</p>` : '');
+  $('#proofApply').hidden = false;
+}
+$('#proofBtn').addEventListener('click', openProofread);
+$('#proofClose').addEventListener('click', () => proofDlg.close());
+$('#proofApply').addEventListener('click', () => {
+  let done = 0, stale = 0;
+  for (const cb of proofDlg.querySelectorAll('[data-sug]:checked')) {
+    const s = proofResult.suggestions[Number(cb.dataset.sug)], t = pointerTarget(s.path);
+    if (!t || t.parent[t.key] !== s.before) { stale++; continue; }       // edited since the check: leave it alone
+    t.parent[t.key] = s.after; done++;
+  }
+  proofDlg.close();
+  if (done) dirty({ structural: true });
+  setState(`${done} correction${done === 1 ? '' : 's'} applied${stale ? `, ${stale} skipped (text changed meanwhile)` : ''}`);
+});
 
 // ---- version history ----
 const histDlg = $('#histDlg');
