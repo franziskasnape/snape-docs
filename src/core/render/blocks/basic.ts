@@ -11,11 +11,12 @@ export function kv(heading: string, lines: { k: string; v: string }[]): string {
 }
 
 /** heading plus paragraphs. Paragraph html is trusted editor content. */
-export function prose(heading: string | undefined, paragraphs: string[]): string {
-  const body = paragraphs.filter((p) => p.trim());
-  if (!heading && !body.length) return '';
+export function prose(heading: string | undefined, paragraphs: string[], bullets: string[] = []): string {
+  const body = paragraphs.filter((p) => p.trim()), points = bullets.filter((p) => p.trim());
+  if (!heading && !body.length && !points.length) return '';
   return (heading ? `<div class="section-heading">${esc(heading)}</div>` : '')
-    + body.map((p) => `<div class="section-body">${p}</div>`).join('');
+    + body.map((p) => `<div class="section-body">${p}</div>`).join('')
+    + (points.length ? `<ul class="section-list">${points.map((p) => `<li>${p}</li>`).join('')}</ul>` : '');
 }
 
 /** labelled paragraph: <em>Hinweis:</em> … */

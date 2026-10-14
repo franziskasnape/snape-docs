@@ -24,7 +24,7 @@ export interface MeasureLabels {
   heading: string; rateNote: string; descCol: string; hoursCol: string; totalLabel: string; hoursUnit: string; approx: string;
 }
 
-export function sumHours(rows: MeasureRow[]): { min: number; max: number } {
+export function sumHours(rows: { hoursMin: number; hoursMax?: number }[]): { min: number; max: number } {
   return rows.reduce((a, r) => ({ min: a.min + r.hoursMin, max: a.max + (r.hoursMax ?? r.hoursMin) }), { min: 0, max: 0 });
 }
 

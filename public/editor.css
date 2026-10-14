@@ -90,3 +90,16 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 #histDlg.wide > .hint { display:none; }
 #histDlg.wide h2 { margin-bottom:8px; }
 #histDlg.wide .hist { height:78vh; max-height:none; }
+
+/* object list rows */
+.orow { display:flex; gap:10px; border:1px solid var(--line); border-radius:6px; background:#fff; padding:8px; margin-bottom:6px; align-items:flex-start; }
+.ophoto { width:70px; flex:none; text-align:center; }
+.ophoto .movers { display:flex; justify-content:center; margin-top:4px; }
+.ophoto img { max-width:70px; max-height:84px; display:block; margin:0 auto 4px; border:1px solid var(--line); }
+.ofields { flex:1; min-width:0; }
+.ogrid { display:grid; grid-template-columns:repeat(3, minmax(0,1fr)); gap:6px; }
+.ogrid > label:nth-child(2) { grid-column:2 / 4; }
+.ogrid > label:nth-child(3) { grid-column:1 / 4; }
+.ogrid input { min-width:0; width:100%; }
+.bulk { display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin:6px 0; }
+.bulk input[type=number] { width:90px; }

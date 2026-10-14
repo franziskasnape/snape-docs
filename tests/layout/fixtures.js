@@ -67,6 +67,25 @@ export function makeOffer({ seed = 1, rows = 10, optionalRows = 2, rowSentences 
   };
 }
 
+/** An invented collection offer: an object list with photos, bullet points and cost lines (no real objects or text). */
+export function makeCollectionOffer({ seed = 1, objects = 43 } = {}) {
+  const r = rng(seed);
+  const kinds = ['Druckgrafik auf Papier', 'wohl Aquarell auf Papier', 'kolorierte Druckgrafik', 'Zeichnung auf Papier'];
+  return {
+    v: 2, meta: { date: '2026-10-04', validUntil: '2027-01-02', title: 'Erste Einschätzung (Beispiel)' }, rate: 100,
+    cost: { materials: true, style: 'lines' },
+    blocks: [
+      { id: 'n1', type: 'note', label: 'hinweis', html: words(r, 3) },
+      { id: 'p1', type: 'prose', heading: 'Vorgesehene Massnahmen', paragraphs: [words(r, 1)], bullets: [words(r, 1), words(r, 1), words(r, 1)] },
+      { id: 'o1', type: 'objects', defaultText: words(r, 3), rows: Array.from({ length: objects }, (_, i) => ({
+        id: `o${i}`, no: String(i + 1).padStart(3, '0'), title: `Beispielobjekt ${i + 1}`, technique: kinds[i % kinds.length], size: i % 5 ? '?' : '30 × 40 cm',
+        hoursMin: 1.5 + (i % 3), hoursMax: 2.5 + (i % 3), imageId: 1 + (i % 4), ...(i % 9 === 4 ? { text: words(r, 7) } : {}),
+      })) },
+      { id: 'p2', type: 'prose', heading: 'Abgrenzung', paragraphs: [words(r, 2)] },
+    ],
+  };
+}
+
 export const context = (lang = 'de') => ({
   number: 'ANG-2099-001', lang,
   client: { name: 'Beispiel AG', address: 'Musterstrasse 1, 8000 Musterstadt', contact: 'Erika Muster', phone: '+41 00 000 00 00', email: 'info@example.invalid' },

@@ -109,11 +109,13 @@
     if (b.type === 'prose') return `Text section – ${headingOf(b)}`;
     if (b.type === 'note') return `${LABELS.notes[b.label] ?? 'Note'} – “${clip(b.html, 28)}”`;
     if (b.type === 'measures') return `Treatment table (${b.kind})`;
+    if (b.type === 'objects') return 'Object list';
     return 'Page break';
   }
   function blockSummary(b) {
     if (b.type === 'prose') return clip((b.paragraphs || []).find((p) => p && p.trim()) ?? '(empty)');
     if (b.type === 'note') return clip(b.html);
+    if (b.type === 'objects') return `${b.rows.length} object${b.rows.length === 1 ? '' : 's'}: ${clip(b.rows.map((r) => r.title).join(', '), 100)}`;
     if (b.type === 'measures') return `${b.rows.length} row${b.rows.length === 1 ? '' : 's'}: ${clip(b.rows.map((r) => r.title).join(', '), 100)}`;
     return '';
   }
@@ -121,10 +123,11 @@
 
   function diffRowFields(where, a, b) {
     const out = [];
-    for (const f of ['title', 'desc', 'hoursMin', 'hoursMax']) {
+    for (const f of ['no', 'title', 'desc', 'technique', 'size', 'text', 'hoursMin', 'hoursMax']) {
       if (a[f] === b[f]) continue;
       out.push(item('changed', [...where, LABELS.fields[f] ?? f], f === 'hoursMin' || f === 'hoursMax' ? `${show(a[f])} → ${show(b[f])}` : textHtml(a[f], b[f])));
     }
+    if (a.imageId !== b.imageId) out.push(item('changed', [...where, 'photo'], a.imageId == null ? 'photo added' : b.imageId == null ? 'photo removed' : 'photo replaced'));
     const ia = a.images ?? [], ib = b.images ?? [], al = alignById(ia, ib, (x) => x.id);
     for (const [ci, vi] of al.common) {
       const x = ia[ci], y = ib[vi];
@@ -155,7 +158,7 @@
     if (a.type === 'prose') {
       const out = [];
       if (headingOf(a) !== headingOf(b)) out.push(item('changed', [...where, 'heading'], textHtml(headingOf(a), headingOf(b))));
-      return out.concat(diffStrings(where, a.paragraphs ?? [], b.paragraphs ?? [], 'paragraph'));
+      return out.concat(diffStrings(where, a.paragraphs ?? [], b.paragraphs ?? [], 'paragraph'), diffStrings(where, a.bullets ?? [], b.bullets ?? [], 'bullet'));
     }
     if (a.type === 'note') {
       const out = [];
@@ -163,7 +166,10 @@
       if (a.html !== b.html) out.push(item('changed', where, textHtml(a.html, b.html)));
       return out;
     }
-    if (a.type === 'measures') return diffMeasures(where, a, b);
+    if (a.type === 'measures' || a.type === 'objects') {
+      const out = a.type === 'objects' ? diffStrings(where, [a.heading ?? '', a.defaultText ?? ''], [b.heading ?? '', b.defaultText ?? ''], 'shared text') : [];
+      return out.concat(diffMeasures(where, a, b));
+    }
     return [];
   }
 

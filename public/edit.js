@@ -29,7 +29,7 @@ const NOTE_LABELS = { hinweis: 'Note', fazit: 'Conclusion', empfehlung: 'Recomme
 const SECTION_UI = { artist: 'Artist & work', condition: 'Condition assessment' };
 // What each standard section prints as, per document language (shown as a hint only; the real text comes from the server)
 const SECTIONS = { artist: { de: 'Zum Künstler und Werk', en: 'About the Artist and Work' }, condition: { de: 'Zustandsbeurteilung', en: 'Condition Assessment' } };
-const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', pagebreak: 'Page break' };
+const BLOCK_NAMES = { prose: 'Text section', note: 'Note', measures: 'Treatment table', objects: 'Object list', pagebreak: 'Page break' };
 
 // ---- form builders ----
 const input = (path, label, opts = {}) => `<label class="field">${label}<input data-path="${path}" ${opts.type ? `type="${opts.type}"${opts.type === 'number' ? ` data-num="1" step="${opts.step ?? 'any'}"` : ''}` : ''} value="${esc(get(path))}" ${opts.ph ? `placeholder="${esc(opts.ph)}"` : ''}></label>`;
@@ -52,6 +52,15 @@ function rowHtml(bp, r, i, n) {
     ${btn('snip-save', `data-path="${p}"`, 'Save to library')}</div>`;
 }
 
+function objectRowHtml(bp, r, i, n) {
+  const p = `${bp}.rows.${i}`;
+  return `<div class="orow"><div class="ophoto">${r.imageId != null ? `<img src="/img/${r.imageId}" alt="">` : '<span class="hint">no photo</span>'}
+      <label class="drop">${r.imageId != null ? 'Replace' : '+ Photo'}<input type="file" accept="image/*" hidden data-upload="objphoto" data-path="${p}"></label>${mover(`${bp}.rows`, i, n)}</div>
+    <div class="ofields"><div class="ogrid">${input(`${p}.no`, 'No.')}${input(`${p}.title`, 'Title / motif')}${input(`${p}.technique`, 'Technique / support')}${input(`${p}.size`, 'Size (H × W)', { ph: '?' })}
+      ${input(`${p}.hoursMin`, 'Hours (min)', { type: 'number', step: 0.5 })}${input(`${p}.hoursMax`, 'Hours (max)', { type: 'number', step: 0.5 })}</div>
+      ${area(`${p}.text`, 'Assessment of this object (empty = shared text above)', 2)}</div></div>`;
+}
+
 function blockHtml(b, i, n) {
   const p = `data.blocks.${i}`;
   let body = '';
@@ -59,9 +68,16 @@ function blockHtml(b, i, n) {
     body = (b.headingKey
       ? `<p class="hint"><b>${SECTION_UI[b.headingKey]}</b> — printed as “${SECTIONS[b.headingKey][doc.lang]}” ${btn('custom-heading', `data-path="${p}"`, 'Custom heading')}</p>`
       : input(`${p}.heading`, 'Heading (optional)')) + b.paragraphs.map((_, k) => `<div class="para">${area(`${p}.paragraphs.${k}`, `Paragraph ${k + 1}`, 4)}${btn('del', `data-arr="${p}.paragraphs" data-i="${k}"`, 'remove paragraph', 'mini danger')}</div>`).join('')
-      + btn('add-para', `data-arr="${p}.paragraphs"`, '+ Paragraph');
+      + btn('add-para', `data-arr="${p}.paragraphs"`, '+ Paragraph')
+      + `<label class="field">Bullet points (optional, one per line)<textarea data-path="${p}.bullets" data-lines="1" rows="4">${esc((b.bullets ?? []).join('\n'))}</textarea></label>`;
   } else if (b.type === 'note') {
     body = `<label class="field">Label<select data-path="${p}.label">${Object.entries(NOTE_LABELS).map(([k, v]) => `<option value="${k}" ${b.label === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` + area(`${p}.html`, 'Text', 4);
+  } else if (b.type === 'objects') {
+    body = input(`${p}.heading`, 'Heading (empty = standard)') + area(`${p}.defaultText`, 'Assessment text shared by all objects (a row can have its own)', 4)
+      + `<div class="bulk"><label class="drop">+ Photos (one row per photo, by file name)<input type="file" accept="image/*" multiple hidden data-upload="objects" data-path="${p}"></label>
+         <span class="hint">Hours for all rows:</span><input type="number" step="0.5" id="bulkMin${i}" placeholder="min"><input type="number" step="0.5" id="bulkMax${i}" placeholder="max (optional)">${btn('apply-hours', `data-path="${p}" data-i="${i}"`, 'Apply to all')}</div>`
+      + `<p class="hint">${b.rows.length} object${b.rows.length === 1 ? '' : 's'}</p>`
+      + b.rows.map((r, k) => objectRowHtml(p, r, k, b.rows.length)).join('') + `<div class="addbar">${btn('add-object', `data-path="${p}"`, '+ Object')}</div>`;
   } else if (b.type === 'measures') {
     body = (b.kind === 'main' ? input(`${p}.option`, 'Option label (only if the client chooses between tables, e.g. “Option A”)') + (b.option ? `<label class="check"><input type="checkbox" data-path="${p}.common" ${b.common ? 'checked' : ''}> Needed in every option (added to each option’s total, not an alternative)</label>` : '') : '') + `<label class="field">Kind<select data-path="${p}.kind"><option value="main" ${b.kind === 'main' ? 'selected' : ''}>Proposed (numbered, counted in the cost)</option><option value="optional" ${b.kind === 'optional' ? 'selected' : ''}>Optional (added separately)</option></select></label>`
       + b.rows.map((r, k) => rowHtml(p, r, k, b.rows.length)).join('') + `<div class="addbar">${btn('add-row', `data-path="${p}"`, '+ Row')}${btn('lib-row', `data-path="${p}"`, '+ From library')}</div>`;
@@ -101,13 +117,14 @@ function formHtml() {
 
   <fieldset><legend>Content</legend>
     ${d.blocks.map((b, i) => blockHtml(b, i, d.blocks.length)).join('')}
-    <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTION_UI.artist} section`)}${btn('add-section', 'data-section="condition"', `+ ${SECTION_UI.condition} section`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
+    <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTION_UI.artist} section`)}${btn('add-section', 'data-section="condition"', `+ ${SECTION_UI.condition} section`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="objects"', '+ Object list')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
   </fieldset>
 
   <fieldset><legend>Cost summary</legend>
     <p class="hint">Hours, rate and CHF are calculated from the tables. Dates can be an ISO date (2026-10-29) or free text ("Mitte November 2026").</p>
     <div class="grid2">${input('data.cost.deliveryFrom', 'Delivery possible from')}${input('data.cost.pickupFrom', 'Pickup expected from')}</div>
     ${d.blocks.some((b) => b.type === 'measures' && b.kind === 'optional') ? input('data.cost.optionalDetail', 'Optional treatment — detail in brackets (optional)', { ph: doc.lang === 'de' ? 'Firnisreduzierung bzw. -abnahme sowie Neuauftrag eines Firnisses' : 'varnish removal and re-varnishing' }) : ''}
+    <label class="field">Layout<select data-path="data.cost.style"><option value="text" ${d.cost.style !== 'lines' ? 'selected' : ''}>One sentence</option><option value="lines" ${d.cost.style === 'lines' ? 'selected' : ''}>Lines: rate, effort, labour costs (+ text below)</option></select></label>
     <label class="check"><input type="checkbox" data-path="data.cost.materials" ${d.cost.materials ? 'checked' : ''}> Materials billed separately</label>
     <label class="check"><input type="checkbox" id="overrideToggle" ${d.cost.overrideHtml != null ? 'checked' : ''}> Edit text manually</label>
     ${d.cost.overrideHtml != null ? `<p class="hint warn">Manual text: hours and CHF figures in it do <b>not</b> update when the tables change. Untick "Edit manually" to go back to the calculated text.</p>` + area('data.cost.overrideHtml', 'Cost summary text', 8) : ''}
@@ -195,7 +212,8 @@ addEventListener('resize', () => { frame.style.zoom = zoomFor(); });
 $('#form').addEventListener('input', (e) => {
   const el = e.target; const p = el.dataset.path; if (!p) return;
   let v = el.type === 'checkbox' ? el.checked : el.value;
-  if (el.dataset.num) v = v === '' ? undefined : Number(v);
+  if (el.dataset.lines) v = v === '' ? undefined : v.split('\n');
+  else if (el.dataset.num) v = v === '' ? undefined : Number(v);
   else if (el.type !== 'checkbox' && v === '' && /\.(heading|note|deliveryFrom|pickupFrom)$/.test(p)) v = undefined;
   if (el.type === 'date' && !v) return;           // a half-typed or cleared date is not a date: keep the last good one
   set(p, v);
@@ -218,10 +236,14 @@ $('#form').addEventListener('change', async (e) => {
     return dirty({ structural: true });
   }
   if (el.dataset.upload) {
-    for (const file of el.files) {
-      setState('Uploading photo…');
+    const files = [...el.files];
+    if (el.dataset.upload === 'objects') files.sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
+    for (const [k, file] of files.entries()) {
+      setState(files.length > 1 ? `Uploading photo ${k + 1} of ${files.length}…` : 'Uploading photo…');
       const imageId = await uploadImage(file);
-      if (el.dataset.upload === 'overview') doc.data.overview = { imageId, caption: doc.lang === 'de' ? 'Gesamtansicht vor der Behandlung' : 'Overall view before treatment' };
+      if (el.dataset.upload === 'objphoto') get(el.dataset.path).imageId = imageId;
+      else if (el.dataset.upload === 'objects') { const blk = get(el.dataset.path); blk.rows.push(newObject(blk, { imageId })); }
+      else if (el.dataset.upload === 'overview') doc.data.overview = { imageId, caption: doc.lang === 'de' ? 'Gesamtansicht vor der Behandlung' : 'Overall view before treatment' };
       else (get(el.dataset.arr) ?? (set(el.dataset.arr, []), get(el.dataset.arr))).push({ id: uid(), imageId, caption: '' });
     }
     dirty({ structural: true });
@@ -237,10 +259,18 @@ $('#form').addEventListener('click', (e) => {
   else if (act === 'add-kv') { doc.artwork.push({ k: '', v: '' }); }
   else if (act === 'add-para') { get(arr).push(''); }
   else if (act === 'add-row') { get(`${path}.rows`).push({ id: uid(), title: '', desc: '', hoursMin: 1 }); }
+  else if (act === 'add-object') { const blk = get(path); blk.rows.push(newObject(blk)); }
+  else if (act === 'apply-hours') {
+    const min = $(`#bulkMin${i}`).value, max = $(`#bulkMax${i}`).value;
+    if (min === '') return alert('Enter at least the minimum hours.');
+    if (!confirm(`Set ${min}${max ? '–' + max : ''} hours on all ${get(path).rows.length} objects? Existing hours on these rows are replaced.`)) return;
+    for (const r of get(path).rows) { r.hoursMin = Number(min); if (max === '') delete r.hoursMax; else r.hoursMax = Number(max); }
+  }
   else if (act === 'add-section') { insertBeforeTable({ id: uid(), type: 'prose', headingKey: section, paragraphs: [''] }); }
   else if (act === 'custom-heading') { const blk = get(path); blk.heading = SECTIONS[blk.headingKey][doc.lang]; delete blk.headingKey; }
   else if (act === 'add-block') {
     const blk = { prose: { type: 'prose', paragraphs: [''] }, note: { type: 'note', label: 'hinweis', html: '' },
+      objects: { type: 'objects', defaultText: '', rows: [] },
       measures: { type: 'measures', kind, rows: [{ id: uid(), title: '', desc: '', hoursMin: 1 }] }, pagebreak: { type: 'pagebreak' } }[type];
     blk.id = uid();
     // text sections and notes belong ahead of the first treatment table; tables and page breaks go at the end
@@ -276,6 +306,13 @@ async function uploadImage(file, maxEdge = 1600, quality = 0.82) {
   const r = await fetch(`/api/images?documentId=${id}&w=${w}&h=${h}`, { method: 'POST', headers: { 'content-type': 'image/jpeg' }, body: blob });
   if (!r.ok) throw new Error(await r.text());
   return (await r.json()).id;
+}
+
+/** A new object row: the next number after the last row, hours copied from it. */
+function newObject(blk, extra = {}) {
+  const last = blk.rows[blk.rows.length - 1];
+  const next = last && /^\d+$/.test(last.no) ? String(Number(last.no) + 1).padStart(last.no.length, '0') : String(blk.rows.length + 1).padStart(3, '0');
+  return { id: uid(), no: next, title: '', technique: '', size: '', hoursMin: last?.hoursMin ?? 1, ...(last?.hoursMax != null ? { hoursMax: last.hoursMax } : {}), ...extra };
 }
 
 // Text sections go before the first "proposed" treatment table (where Zustandsbeurteilung etc. belong)

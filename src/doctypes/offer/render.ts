@@ -6,8 +6,9 @@ import { offerMigrations } from './migrations';
 import { frame, type FrameOptions } from '../../core/render/frame';
 import { kv, note, overviewFigure, pageBreak, prose } from '../../core/render/blocks/basic';
 import { measures } from '../../core/render/blocks/measures';
+import { objects } from '../../core/render/blocks/objects';
 import { esc } from '../../core/format';
-import { costParagraph } from './cost';
+import { costLines, costParagraph } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
 
@@ -28,9 +29,13 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   while (content.length && content[content.length - 1].type === 'pagebreak') content = content.slice(0, -1);   // the final page starts on a new page anyway
   const blocks = content.map((b) => {
     switch (b.type) {
-      case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs);
+      case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs, b.bullets);
       case 'note': return note(L.notes[b.label], b.html);
       case 'pagebreak': return pageBreak();
+      case 'objects': return objects(ctx, b, {
+        ...L.objects, heading: L.objects.heading, rateNote: L.rate.replace('{rate}', String(d.rate)),
+        totalLabel: L.totalMain, hoursUnit: L.hoursUnit, approx: ctx.lang === 'de' ? 'ca.' : 'approx.',
+      });
       case 'measures': return measures(ctx, b, {
         heading: b.kind === 'main' ? L.measures : L.optional,
         rateNote: L.rate.replace('{rate}', String(d.rate)),
@@ -61,7 +66,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
     <div class="doc-title">${esc(d.meta.title ?? L.title)}</div></div><div class="hr"></div>
     ${info}${blocks}
     <section class="final-page">
-      <div class="section-heading">${esc(L.costHeading)}</div><div class="section-body">${costParagraph(d, ctx.lang)}</div>
+      <div class="section-heading">${esc(L.costHeading)}</div>${costLines(d, ctx.lang)}<div class="section-body">${costParagraph(d, ctx.lang)}</div>
       ${sign}
     </section>`;
 

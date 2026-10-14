@@ -8,6 +8,7 @@ export const offerLabels = {
     rate: 'Stundensatz CHF {rate}.– / Std.', hoursCol: 'Aufwand (ca. Std.)', descCol: 'Beschreibung',
     totalMain: 'Total Aufwand', totalOptional: 'Optional zusätzlich', hoursUnit: 'Std.',
     costHeading: 'Kostenaufstellung',
+    objects: { heading: 'Objekte und Aufwandschätzung', imageCol: 'Bild', noCol: 'Obj.-Nr.', descCol: 'Bezeichnung / Technik / Einschätzung', sizeCol: 'Masse gerahmt (H\u00a0×\u00a0B)', hoursCol: 'Geschätzter Zeitaufwand' },
     notes: { hinweis: 'Hinweis:', fazit: 'Fazit:', empfehlung: 'Empfehlung:' },
     sections: { artist: 'Zum Künstler und Werk', condition: 'Zustandsbeurteilung' },
   },
@@ -18,9 +19,16 @@ export const offerLabels = {
     rate: 'Hourly rate CHF {rate}.– / hr', hoursCol: 'Effort (approx. hrs)', descCol: 'Description',
     totalMain: 'Total effort', totalOptional: 'Optional additional', hoursUnit: 'hrs',
     costHeading: 'Cost Summary',
+    objects: { heading: 'Objects and Effort Estimate', imageCol: 'Image', noCol: 'No.', descCol: 'Title / Technique / Assessment', sizeCol: 'Framed size (H\u00a0×\u00a0W)', hoursCol: 'Estimated effort' },
     notes: { hinweis: 'Note:', fazit: 'Conclusion:', empfehlung: 'Recommendation:' },
     sections: { artist: 'About the Artist and Work', condition: 'Condition Assessment' },
   },
+} satisfies Record<Lang, unknown>;
+
+/** Label/value lines of the cost summary (cost.style = 'lines') */
+export const costLineLabels = {
+  de: { rate: 'Stundensatz', rateVal: 'CHF {rate}.– / Stunde', effort: 'Geschätzter Zeitaufwand', effortVal: 'ca. {hours} Stunden{objs}', objs: ' für {n} Objekte', cost: 'Geschätzte Arbeitskosten', to: ' bis ' },
+  en: { rate: 'Hourly rate', rateVal: 'CHF {rate}.– / hour', effort: 'Estimated effort', effortVal: 'approx. {hours} hours{objs}', objs: ' for {n} objects', cost: 'Estimated labour costs', to: ' to ' },
 } satisfies Record<Lang, unknown>;
 
 export const costTemplate = {

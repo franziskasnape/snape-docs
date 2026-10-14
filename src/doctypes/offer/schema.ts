@@ -1,10 +1,12 @@
 import type { ImageRef } from '../../core/types';
 import type { MeasuresBlock } from '../../core/render/blocks/measures';
+import type { ObjectsBlock } from '../../core/render/blocks/objects';
 
 export type OfferBlock =
-  | { id?: string; type: 'prose'; heading?: string; headingKey?: 'artist' | 'condition'; paragraphs: string[] }
+  | { id?: string; type: 'prose'; heading?: string; headingKey?: 'artist' | 'condition'; paragraphs: string[]; bullets?: string[] }
   | { id?: string; type: 'note'; label: 'hinweis' | 'fazit' | 'empfehlung'; html: string }
   | MeasuresBlock
+  | ObjectsBlock
   | { id?: string; type: 'pagebreak' };
 
 export interface OfferData {
@@ -13,7 +15,9 @@ export interface OfferData {
   meta: { date: string; validUntil: string; dateAuto?: boolean; title?: string; eyebrow?: string };
   overview?: ImageRef & { note?: string; layout?: 'auto' | 'landscape' | 'portrait' };
   blocks: OfferBlock[];
-  cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string };
+  cost: { deliveryFrom?: string; pickupFrom?: string; materials: boolean; optionalDetail?: string; overrideHtml?: string;
+    /** 'lines' = label/value lines (rate, effort, cost) above the text, instead of one sentence; missing = 'text' */
+    style?: 'text' | 'lines' };
   rate: number;
   /** contractor signature on the last page; missing = on */
   sign?: { enabled?: boolean; place?: string };

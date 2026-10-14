@@ -148,6 +148,26 @@ Document `data` carries a schema version, `data.v` (missing means 1). The curren
   longest-common-subsequence, text word by word. Tags: changed, brought back, removed, moved.
 - Not done yet: restoring single changes, highlighting changed areas in the pages, freezing what was actually sent.
 
+## Collection offers (object lists)
+
+For a large group of works with little known about each (an "Ersteinschätzung" of 40+ framed objects), an offer uses the
+**Object list** block (`core/render/blocks/objects.ts`) instead of a treatment table: one table row per object with photo, number, title,
+technique, size, an assessment text and an hour estimate. The assessment text is stored **once** in the block (`defaultText`); a row only
+carries its own `text` when it differs. The cost summary can show label/value lines (`cost.style = 'lines'`: rate, estimated effort with
+the object count, labour costs) with the text underneath; all figures are calculated from the rows. Text sections can have bullet points
+(`bullets`). In the editor: *+ Object list*, *+ Photos* (one row per photo, ordered by file name) and *Apply to all* for the hours.
+
+**Importing an earlier PDF** (one-off, macOS, the app must be running): everything stays under `seed/` (git-ignored; the PDF holds client data).
+
+```bash
+node scripts/import-object-pdf.mjs <file.pdf>                                  # rows + photos -> seed/object-list/ (objects.json, images/, text.txt)
+# put the intro/closing text and the objects block together into seed/object-list/offer.json (see the header of scripts/load-offer-json.mjs)
+node scripts/load-offer-json.mjs seed/object-list/offer.json                   # creates the offer, uploads the photos
+```
+
+`import-object-pdf.mjs` expects the earlier layout (A4 landscape, one photo per row, columns photo | No. | title | technique | size | assessment | hours)
+and stops with a message when a page does not match.
+
 ## Photos
 
 The browser shrinks every upload (max 1600 px, JPEG quality 0.82) before sending it to `POST /api/images`; the server

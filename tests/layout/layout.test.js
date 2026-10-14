@@ -7,7 +7,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { getDocument } from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { engineInstalled, findChrome, fontsInstalled, startHarness } from './harness.js';
 import { findDefects, lowFillPages } from './defects.js';
-import { makeOffer, rng, words } from './fixtures.js';
+import { makeCollectionOffer, makeOffer, rng, words } from './fixtures.js';
 
 const ready = !!findChrome() && engineInstalled();
 if (!ready) console.warn('Layout tests skipped: need Google Chrome (or CHROME_PATH) and public/vivliostyle.js (run npm install).');
@@ -125,4 +125,12 @@ d('special cases', () => {
     expect(r.flatMap((x) => findDefects(x.pages).map((m) => `${x.name}: ${m}`))).toEqual([]);
   });
 
+
+  it('a 43-object collection offer lays out without defects, repeats its table header and ends with the cost summary page', async () => {
+    const pages = await h.render(makeCollectionOffer({ seed: 5 }));
+    expect(findDefects(pages)).toEqual([]);
+    expect(pages.length).toBeGreaterThan(5);
+    const withRows = pages.filter((p) => p.rowTitles.length);
+    expect(withRows.reduce((a, p) => a + p.rowTitles.length, 0)).toBe(43);
+  });
 });

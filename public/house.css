@@ -124,6 +124,18 @@ table.doc-table td.num, table.doc-table th.num { text-align:right; white-space:n
 .totals .trow .tv { width:40mm; text-align:right; white-space:nowrap; }
 .totals .grand { font-weight:700; font-size:11pt; border-top:0.75pt solid #1a1613; margin-top:1mm; padding-top:2.4mm; }
 
+/* ---- object list (collection offers) ---- */
+table.doc-table.obj-table th.num { white-space:normal; }
+.obj-table td.obj-photo { padding-right:3mm; }
+.obj-img { display:block; max-width:20mm; max-height:22mm; border:0.4pt solid #d8cec2; }
+.obj-table td.obj-no { color:#6f5f49; font-weight:600; }
+.obj-table td.obj-size { color:#6f5f49; }
+.obj-text { font-size:7.8pt; margin-top:0.8mm; }
+.section-list { margin:0 0 2mm 5mm; font-size:9.3pt; line-height:1.4; }
+.section-list li { margin-bottom:0.8mm; }
+.cost-lines { margin-bottom:2.5mm; }
+.cost-lines .info-line .k { width:52mm; }
+
 /* ---- signatures: kept together at the end ---- */
 .sign-group { break-inside:avoid; margin-top:6mm; }
 /* Cost summary + signatures always form their own final page */

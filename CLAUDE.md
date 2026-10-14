@@ -31,6 +31,7 @@ browser tab is visible (the layout engine pauses in hidden tabs).
 
 - **The editor UI is English; generated documents are German or English.** Printed labels are keys translated at
   render time (`src/doctypes/*/i18n.ts`); never hard-code German into `public/edit.js` or other UI text.
+- Collection offers use the `objects` block (shared `defaultText`, per-row `text`); the PDF importer and loader are `scripts/import-object-pdf.mjs` / `load-offer-json.mjs` and write only under git-ignored `seed/`.
 - **Never type computed numbers** (hour totals, CHF). They come from `doctypes/offer/cost.ts` and the measures block.
 - **Document data has a schema version** (`data.v`). Adding an optional field is free; renaming/restructuring needs a
   migration in the doc type (`migrations.ts`) plus a `schemaVersion` bump. Never rewrite stored history snapshots;

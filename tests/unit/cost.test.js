@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { costParagraph } from '../../src/doctypes/offer/cost';
+import { costLines, costParagraph } from '../../src/doctypes/offer/cost';
 
 const rows = (...r) => r.map(([lo, hi], i) => ({ id: `r${i}`, title: `Row ${i}`, desc: '', hoursMin: lo, ...(hi ? { hoursMax: hi } : {}) }));
 const offer = (over = {}) => ({ v: 2, meta: {}, rate: 100, cost: { materials: false }, blocks: [{ id: 'b', type: 'measures', kind: 'main', rows: rows([1.5, 2], [3, 4], [1]) }], ...over });
@@ -86,5 +86,24 @@ describe('Kostenaufstellung', () => {
     const t = text(costParagraph(d, 'de'));
     expect(t).toContain("Konservatorische Massnahmen + Option A: ca. 31–48.5 Stunden bzw. ca. CHF 3'100–4'850");
     expect(t).toContain("Konservatorische Massnahmen + Option B: ca. 26–41.5 Stunden bzw. ca. CHF 2'600–4'150");
+  });
+
+  it('lines style: rate, effort and labour costs from the object list and the tables, with the object count', () => {
+    const d = offer({ cost: { materials: true, style: 'lines' }, blocks: [
+      { id: 'o', type: 'objects', rows: [{ id: 'a', no: '1', title: 'A', hoursMin: 1.5, hoursMax: 2.5 }, { id: 'b', no: '2', title: 'B', hoursMin: 4, hoursMax: 6 }] },
+      { id: 'm', type: 'measures', kind: 'main', rows: rows([2, 3]) },
+    ] });
+    const lines = text(costLines(d, 'de')), para = text(costParagraph(d, 'de'));
+    expect(lines).toContain('Stundensatz');
+    expect(lines).toContain('CHF 100.– / Stunde');
+    expect(lines).toContain('ca. 7.5–11.5 Stunden für 2 Objekte');
+    expect(lines).toContain("CHF 750.– bis CHF 1'150.–");
+    expect(para).toContain('Materialkosten sind darin nicht enthalten');
+    expect(para).not.toContain('Arbeitsaufwand beträgt');            // the figures are not repeated in the text
+  });
+  it('text style: an object list counts as proposed work in the sentence', () => {
+    const d = offer({ blocks: [{ id: 'o', type: 'objects', rows: [{ id: 'a', no: '1', title: 'A', hoursMin: 2, hoursMax: 3 }] }] });
+    expect(text(costParagraph(d, 'de'))).toContain('ca. 2–3 Stunden');
+    expect(costLines(d, 'de')).toBe('');
   });
 });

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderOffer } from '../../src/doctypes/offer/render';
-import { context, makeOffer } from '../layout/fixtures.js';
+import { makeCollectionOffer, context, makeOffer } from '../layout/fixtures.js';
 
 const render = (data, lang = 'de', ctx = {}) => renderOffer(JSON.parse(JSON.stringify(data)), { ...context(lang), ...ctx });
 const count = (html, re) => (html.match(re) ?? []).length;
@@ -77,5 +77,32 @@ describe('offer rendering', () => {
   it('prints object and client details and leaves out empty object lines', () => {
     const html = render(makeOffer({ seed: 4 }), 'de', { artwork: [{ k: 'Titel', v: 'Teststudie' }, { k: 'Signatur', v: '' }] });
     expect(html).toContain('Teststudie'); expect(html).not.toContain('Signatur'); expect(html).toContain('Beispiel AG');
+  });
+});
+
+describe('object lists', () => {
+  const ctx = context('de');
+  it('prints photo, number, title, technique, shared and own assessment text, size and hours; the total is calculated', () => {
+    const d = makeCollectionOffer({ seed: 1, objects: 5 });
+    const html = renderOffer(d, ctx);
+    expect(html).toContain('Beispielobjekt 1');
+    expect(html).toContain('class="doc-table obj-table"');
+    expect(html).toContain('Bezeichnung / Technik / Einschätzung');
+    expect(html.match(/class="obj-img"/g)).toHaveLength(5);
+    expect(html).toContain('>?</td>');                                       // unknown size prints a question mark
+    const rows = d.blocks.find((b) => b.type === 'objects').rows;
+    const lo = rows.reduce((a, r) => a + r.hoursMin, 0), hi = rows.reduce((a, r) => a + r.hoursMax, 0);
+    expect(html).toContain(`ca. ${lo}–${hi} Std.`);
+  });
+  it('bullet points print as a list and empty ones are skipped', () => {
+    const d = makeCollectionOffer({ seed: 2, objects: 1 });
+    d.blocks[1].bullets = ['Erster Punkt', '', 'Zweiter Punkt'];
+    const html = renderOffer(d, ctx);
+    expect(html).toContain('<ul class="section-list"><li>Erster Punkt</li><li>Zweiter Punkt</li></ul>');
+  });
+  it('escapes text in rows', () => {
+    const d = makeCollectionOffer({ seed: 3, objects: 1 });
+    d.blocks[2].rows[0].title = '<b>x</b>';
+    expect(renderOffer(d, ctx)).not.toContain('<b>x</b>');
   });
 });
