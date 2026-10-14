@@ -151,7 +151,7 @@ The newest is never removed. Photos are never removed from the mirror.
    ```
 
 Your current data is **not** deleted: it is moved to `.wrangler/state.before-restore-<time>`, so a restore can be undone
-by moving that folder back. Add `--dest "<folder>"` if the backups are not in the remembered folder.
+by moving that folder back. A snapshot taken before a database change is brought up to date automatically (pending migrations are applied after loading it). Add `--dest "<folder>"` if the backups are not in the remembered folder.
 (Tested: a restore recreates all documents, clients, snippets, history and every photo, byte for byte.)
 
 Older backups made by the previous version of this tool (folders directly under `snape-docs-backups/` containing

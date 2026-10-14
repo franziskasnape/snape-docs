@@ -56,6 +56,8 @@ const tmp = mkdtempSync(join(tmpdir(), 'snape-restore-'));
 try {
   writeFileSync(join(tmp, 'db.sql'), gunzipSync(readFileSync(join(snap, 'database.sql.gz'))));
   execFileSync('npx', ['wrangler', 'd1', 'execute', 'DB', '--local', '--persist-to', stateDir, '--file', join(tmp, 'db.sql')], { cwd: ROOT, stdio: 'ignore' });
+  // a snapshot from before a database change lacks the newer columns: bring it up to date (does nothing for a current snapshot)
+  execFileSync('npx', ['wrangler', 'd1', 'migrations', 'apply', 'DB', '--local', '--persist-to', stateDir], { cwd: ROOT, stdio: 'ignore' });
 } finally { rmSync(tmp, { recursive: true, force: true }); }
 
 // photos: the index (which photo is which) from the snapshot, the files from the shared mirror
