@@ -94,6 +94,9 @@ body {
 .rate-note { font-size:8.3pt; color:#6f5f49; }
 .clear { clear:both; }
 
+/* editor preview only (the text carries data-src there): show what a double click will edit */
+@media screen { [data-src]:hover { background:rgba(255,214,102,.3); cursor:text; } }
+
 /* ---- tables ---- */
 table.doc-table { width:100%; border-collapse:collapse; table-layout:fixed; margin-top:2mm; font-size:8.8pt; }
 /* the last row and the total line are never separated by a page break */

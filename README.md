@@ -40,6 +40,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
   (resized in the browser to max 1600 px JPEG; originals stay in Google Drive)
 - **Offer type**: object and client info, text sections, notes, treatment tables with calculated hour totals,
   optional treatments, calculated cost paragraph (DE/EN), signatures, portrait/landscape overview photo
+- **Double-click to edit**: double-click a word in the live preview and the editor jumps to that field and selects the exact word (headings and calculated text jump to their block)
 - **Private notes**: a small rich-text box (bold, italic, bullet and numbered lists) at the top of the editor, saved with the offer, in its history and in backups, and never printed or exported
 - **Collection offers**: an *Object list* block (photo, number, title, technique, size, shared assessment text, hours per object), bullet lists, and a cost summary as rate / effort / cost lines; `scripts/import-object-pdf.mjs` reads an earlier PDF into it
 - **API for scripts and agents**: everything the editor does is available over HTTP and as `npm run snape -- <command>` (create/read/edit/delete, photos, PDF, history), with OpenAPI and JSON Schema, validation errors with paths, and revision checks

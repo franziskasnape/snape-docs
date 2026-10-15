@@ -84,7 +84,7 @@ function blockHtml(b, i, n) {
   } else if (b.type === 'pagebreak') {
     body = '<p class="hint">Content after this block starts on a new page.</p>';
   }
-  return `<div class="block"><div class="block-head"><span class="type">${b.type === 'prose' ? `Text section — ${b.headingKey ? SECTION_UI[b.headingKey] : esc(b.heading || 'untitled')}` : BLOCK_NAMES[b.type]}${b.type === 'measures' ? ` — ${b.kind}` : ''}</span>${mover('data.blocks', i, n)}</div>${body}</div>`;
+  return `<div class="block" data-bp="${p}"><div class="block-head"><span class="type">${b.type === 'prose' ? `Text section — ${b.headingKey ? SECTION_UI[b.headingKey] : esc(b.heading || 'untitled')}` : BLOCK_NAMES[b.type]}${b.type === 'measures' ? ` — ${b.kind}` : ''}</span>${mover('data.blocks', i, n)}</div>${body}</div>`;
 }
 
 // ---- private notes: a small rich-text field whose content is never printed ----
@@ -144,7 +144,7 @@ function formHtml() {
     <div class="addbar">${btn('add-section', 'data-section="artist"', `+ ${SECTION_UI.artist} section`)}${btn('add-section', 'data-section="condition"', `+ ${SECTION_UI.condition} section`)}${btn('add-block', 'data-type="prose"', '+ Other text section')}${btn('add-block', 'data-type="note"', '+ Note')}${btn('add-block', 'data-type="measures" data-kind="main"', '+ Treatment table')}${btn('add-block', 'data-type="measures" data-kind="optional"', '+ Optional table')}${btn('add-block', 'data-type="objects"', '+ Object list')}${btn('add-block', 'data-type="pagebreak"', '+ Page break')}${btn('lib-artist', '', '+ Artist bio from library')}</div>
   </fieldset>
 
-  <fieldset><legend>Cost summary</legend>
+  <fieldset data-bp="#cost"><legend>Cost summary</legend>
     <p class="hint">Hours, rate and CHF are calculated from the tables. Dates can be an ISO date (2026-10-29) or free text ("Mitte November 2026").</p>
     <div class="grid2">${input('data.cost.deliveryFrom', 'Delivery possible from')}${input('data.cost.pickupFrom', 'Pickup expected from')}</div>
     ${d.blocks.some((b) => b.type === 'measures' && b.kind === 'optional') ? input('data.cost.optionalDetail', 'Optional treatment — detail in brackets (optional)', { ph: doc.lang === 'de' ? 'Firnisreduzierung bzw. -abnahme sowie Neuauftrag eines Firnisses' : 'varnish removal and re-varnishing' }) : ''}
@@ -154,7 +154,7 @@ function formHtml() {
     ${d.cost.overrideHtml != null ? `<p class="hint warn">Manual text: hours and CHF figures in it do <b>not</b> update when the tables change. Untick "Edit manually" to go back to the calculated text.</p>` + area('data.cost.overrideHtml', 'Cost summary text', 8) : ''}
   </fieldset>
 
-  <fieldset><legend>Signature</legend>
+  <fieldset data-bp="#sign"><legend>Signature</legend>
     <label class="check"><input type="checkbox" data-path="data.sign.enabled" ${d.sign?.enabled !== false ? 'checked' : ''}> Print my signature, place and date on the contractor line of the last page</label>
     ${input('data.sign.place', 'Place of signing (empty = default)', { ph: appSettings.signaturePlace })}
     <p class="hint">The date is the offer date (top of this form). ${appSettings.signatureImageId ? 'Your signature image comes from the Settings page.' : '<b>No signature image yet</b>: upload it on the <a href="/settings.html" target="_blank">Settings page</a>; until then only place and date are printed.'}</p>
@@ -236,8 +236,40 @@ addEventListener('message', async (e) => {
   frame.remove(); frame = nf; frame.id = 'preview';
   host.scrollTop = scroll;
   $('#previewState').textContent = `${nf.contentDocument.querySelectorAll('[data-vivliostyle-page-container]').length} pages`;
+  nf.contentDocument.addEventListener('dblclick', (ev) => onPreviewDblClick(ev, nf.contentWindow));
 });
 addEventListener('resize', () => { frame.style.zoom = zoomFor(); });
+
+// ---- double-click in the preview: jump to the field (and the word) in the form ----
+function flash(el) { el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 1600); }
+function revealField(info) {
+  const form = $('#form'), q = (a, v) => form.querySelector(`[${a}="${v.replace(/"/g, '\\"')}"]`);
+  const field = info.path.replace(/"/g, '\\"'), el = form.querySelector(`input[data-path="${field}"], textarea[data-path="${field}"], select[data-path="${field}"]`);   // fields only (a button may share a path)
+  if (!el) {                                               // no field of its own (a heading, the calculated cost text…): show the block
+    const box = q('data-bp', /^data\.blocks\.\d+/.exec(info.path)?.[0] ?? info.path);
+    if (box) { box.scrollIntoView({ block: 'center', behavior: 'smooth' }); flash(box); }
+    return;
+  }
+  const label = el.closest('label, .kv-row, .para') ?? el;
+  label.scrollIntoView({ block: 'center' });
+  const at = info.word ? DocLocate.locate(el.value, info.html, info.word, info.k, info.line) : null;
+  if (at) el.setSelectionRange(at[0], at[1]);
+  el.focus({ preventScroll: true });
+  flash(label);
+}
+function onPreviewDblClick(e, win) {
+  const el = e.target.closest?.('[data-src]');
+  if (!el) return;
+  const sel = win.getSelection();
+  const word = sel.toString().trim().replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, '');
+  let k = 0;
+  if (word && sel.rangeCount) {                            // which occurrence of the word was it? (count the ones before it in this text)
+    const r = sel.getRangeAt(0), pre = el.ownerDocument.createRange();
+    pre.selectNodeContents(el);
+    try { pre.setEnd(r.startContainer, r.startOffset); k = DocLocate.countWord(pre.toString(), word); } catch { k = 0; }
+  }
+  revealField({ path: el.dataset.src, html: el.dataset.srcHtml === '1', line: el.dataset.srcLine !== undefined ? Number(el.dataset.srcLine) : undefined, word, k });
+}
 
 // ---- events ----
 $('#form').addEventListener('input', (e) => {

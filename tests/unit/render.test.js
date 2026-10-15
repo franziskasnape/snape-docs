@@ -117,3 +117,40 @@ describe('private notes', () => {
     expect(JSON.parse(JSON.stringify(d)).privateNotes).toBe('<b>x</b>');
   });
 });
+
+describe('source markers for double click to edit (preview only)', () => {
+  const withMap = (d, lang = 'de') => renderOffer(JSON.parse(JSON.stringify(d)), { ...context(lang), sourceMap: true });
+  it('printed output carries no markers', () => {
+    expect(render(makeOffer({ seed: 1 }))).not.toContain('data-src');
+    expect(render(makeCollectionOffer({ seed: 1, objects: 3 }))).not.toContain('data-src');
+  });
+  it('paragraphs, bullets, notes, rows and Objekt lines point at their editor field, with the original index', () => {
+    const d = makeOffer({ seed: 2, rows: 2 });
+    d.blocks[0].paragraphs = ['', 'Zweiter Absatz.'];                 // an empty first paragraph is not printed: the second keeps index 1
+    d.blocks[1].bullets = ['', 'Punkt'];
+    const html = withMap(d);
+    expect(html).toContain('data-src="data.blocks.0.paragraphs.1" data-src-html="1">Zweiter Absatz.');
+    expect(html).toContain('data-src="data.blocks.1.bullets" data-src-html="1" data-src-line="1">Punkt');
+    expect(html).toContain('data-src="data.blocks.2.rows.1.title"');
+    expect(html).toContain('data-src="data.blocks.2.rows.0.desc"');
+    expect(html).toContain('data-src="artwork.0.v"');
+    expect(html).toContain('data-src="client.name"');
+    expect(html).toMatch(/data-src="data\.blocks\.\d+\.html" data-src-html="1"><em>/);
+  });
+  it('a standard heading points at its block (no field of its own); a custom one at its heading field', () => {
+    const d = makeOffer({ seed: 3, rows: 1 });
+    d.blocks[0].headingKey = 'artist';
+    expect(withMap(d)).toContain('<div class="section-heading" data-src="data.blocks.0">');
+    delete d.blocks[0].headingKey; d.blocks[0].heading = 'Eigene Überschrift';
+    expect(withMap(d)).toContain('data-src="data.blocks.0.heading">Eigene');
+  });
+  it('object rows point at their own text, or at the shared text when they have none', () => {
+    const d = makeCollectionOffer({ seed: 4, objects: 3 });
+    const blk = d.blocks.findIndex((b) => b.type === 'objects');
+    d.blocks[blk].rows[0].text = 'Eigener Text'; delete d.blocks[blk].rows[1].text;
+    const html = withMap(d);
+    expect(html).toContain(`data-src="data.blocks.${blk}.rows.0.text">Eigener Text`);
+    expect(html).toContain(`data-src="data.blocks.${blk}.defaultText"`);
+    expect(html).toContain(`data-src="data.blocks.${blk}.rows.2.title"`);
+  });
+});

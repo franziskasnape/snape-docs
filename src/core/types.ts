@@ -19,6 +19,8 @@ export interface RenderContext {
   imageDims?: Record<number, { w: number; h: number }>;
   /** The studio owner's signature for the contractor line: image URL (empty if none uploaded) and the default place of signing */
   signature?: { src: string; place: string; baseline: number };
+  /** Editor preview only: mark text with the editor field it comes from (data-src), so a double click can jump to it */
+  sourceMap?: boolean;
 }
 
 /** One piece of wording a proofreader may check (see doctypes/offer/text.ts) */

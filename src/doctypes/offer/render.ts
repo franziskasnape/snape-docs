@@ -8,6 +8,7 @@ import { kv, note, overviewFigure, pageBreak, prose } from '../../core/render/bl
 import { measures } from '../../core/render/blocks/measures';
 import { objects } from '../../core/render/blocks/objects';
 import { esc } from '../../core/format';
+import { src } from '../../core/render/source';
 import { costLines, costParagraph } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
@@ -21,30 +22,31 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
   const c = ctx.client;
 
   const clientLines = [
-    { k: C.clientName, v: c.name ?? '' }, { k: C.clientAddress, v: c.address ?? '' }, { k: C.clientContact, v: c.contact ?? '' },
-    { k: C.phone, v: c.phone ?? '' }, { k: C.email, v: c.email ?? '' },
+    { k: C.clientName, v: c.name ?? '', vPath: 'client.name' }, { k: C.clientAddress, v: c.address ?? '', vPath: 'client.address' }, { k: C.clientContact, v: c.contact ?? '', vPath: 'client.contact' },
+    { k: C.phone, v: c.phone ?? '', vPath: 'client.phone' }, { k: C.email, v: c.email ?? '', vPath: 'client.email' },
   ];
-  const info = `<div class="info-grid"><div class="info-stack">${kv(C.object, ctx.artwork)}${kv(C.client, clientLines)}</div>`
+  const info = `<div class="info-grid"><div class="info-stack">${kv(C.object, ctx.artwork.map((a, i) => ({ ...a, kPath: `artwork.${i}.k`, vPath: `artwork.${i}.v` })), ctx)}${kv(C.client, clientLines, ctx)}</div>`
     + overviewFigure(ctx, d.overview, d.overview?.note, d.overview?.layout) + `</div>`;
 
   let content = d.blocks;
   while (content.length && content[content.length - 1].type === 'pagebreak') content = content.slice(0, -1);   // the final page starts on a new page anyway
-  const blocks = content.map((b) => {
+  const blocks = content.map((b, bi) => {
+    const at = `data.blocks.${bi}`;
     switch (b.type) {
-      case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs, b.bullets);
-      case 'note': return note(L.notes[b.label], b.html);
+      case 'prose': return prose(b.headingKey ? L.sections[b.headingKey] : b.heading, b.paragraphs, b.bullets, { ctx, path: at, customHeading: !b.headingKey });
+      case 'note': return note(L.notes[b.label], b.html, { ctx, path: at });
       case 'pagebreak': return pageBreak();
       case 'objects': return objects(ctx, b, {
         ...L.objects, heading: L.objects.heading, rateNote: L.rate.replace('{rate}', String(d.rate)),
         totalLabel: L.totalMain, hoursUnit: L.hoursUnit, approx: ctx.lang === 'de' ? 'ca.' : 'approx.',
-      });
+      }, at);
       case 'measures': return measures(ctx, b, {
         heading: b.kind === 'main' ? L.measures : L.optional,
         rateNote: L.rate.replace('{rate}', String(d.rate)),
         descCol: L.descCol, hoursCol: L.hoursCol,
         totalLabel: b.kind === 'main' ? L.totalMain : L.totalOptional,
         hoursUnit: L.hoursUnit, approx: ctx.lang === 'de' ? 'ca.' : 'approx.',
-      });
+      }, at);
     }
   }).join('\n');
 
@@ -68,7 +70,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
     <div class="doc-title">${esc(d.meta.title ?? L.title)}</div></div><div class="hr"></div>
     ${info}${blocks}
     <section class="final-page">
-      <div class="section-heading">${esc(L.costHeading)}</div>${costLines(d, ctx.lang)}<div class="section-body">${costParagraph(d, ctx.lang)}</div>
+      <div class="section-heading"${src(ctx, '#cost')}>${esc(L.costHeading)}</div><div${src(ctx, '#cost')}>${costLines(d, ctx.lang)}</div><div class="section-body"${src(ctx, d.cost.overrideHtml ? 'data.cost.overrideHtml' : '#cost', { html: !!d.cost.overrideHtml })}>${costParagraph(d, ctx.lang)}</div>
       ${sign}
     </section>`;
 

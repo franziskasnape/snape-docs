@@ -1,6 +1,7 @@
 import { esc, fmtHours } from '../../format';
 import type { ImageRef, RenderContext } from '../../types';
 import { rowFigures } from './basic';
+import { src } from '../source';
 
 export interface MeasureRow {
   id?: string;
@@ -28,10 +29,10 @@ export function sumHours(rows: { hoursMin: number; hoursMax?: number }[]): { min
   return rows.reduce((a, r) => ({ min: a.min + r.hoursMin, max: a.max + (r.hoursMax ?? r.hoursMin) }), { min: 0, max: 0 });
 }
 
-export function measures(ctx: RenderContext, b: MeasuresBlock, L: MeasureLabels): string {
+export function measures(ctx: RenderContext, b: MeasuresBlock, L: MeasureLabels, at = ''): string {
   const numbered = b.kind === 'main';
   const rowHtml = (r: MeasureRow, i: number) => `<tr><td>${numbered ? i + 1 : '–'}</td><td>${rowFigures(ctx, r.images)}`
-    + `<span class="table-title">${esc(r.title)}</span><span class="table-desc">${esc(r.desc ?? '')}</span></td>`
+    + `<span class="table-title"${at ? src(ctx, `${at}.rows.${i}.title`) : ''}>${esc(r.title)}</span><span class="table-desc"${at ? src(ctx, `${at}.rows.${i}.desc`) : ''}>${esc(r.desc ?? '')}</span></td>`
     + `<td class="num">${fmtHours(r.hoursMin, r.hoursMax)}</td></tr>`;
   const cols = '<colgroup><col style="width:9mm"><col><col style="width:36mm"></colgroup>';
   const thead = `<thead><tr><th></th><th>${esc(L.descCol)}</th><th class="num">${esc(L.hoursCol)}</th></tr></thead>`;

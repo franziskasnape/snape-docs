@@ -158,6 +158,11 @@ See [API.md](API.md). The pieces: `src/doctypes/offer/zod.ts` (the schema every 
 The offer data types are derived from `zod.ts` (the one place to add a field); a new endpoint needs an entry in `openapi.ts` and a test in `tests/api/`.
 Every saving endpoint bumps `documents.rev`; the editor sends `baseRev` and shows "Changed elsewhere" on a 409.
 
+## Double-click in the preview → the editor field
+
+The editor preview is rendered with `ctx.sourceMap = true`: every piece of editable text carries `data-src="<editor field path>"` (`src()` in `core/render/source.ts`; also `data-src-html` when the field holds HTML and `data-src-line` for bullet points). Printed output, PDF and the standalone file carry no markers (a test guards this). On a double click `onPreviewDblClick` (`public/edit.js`) reads the selected word and which occurrence of it it is, and `DocLocate.locate` (`public/locate.js`) finds that same occurrence in the field's source text, skipping HTML tags and entities. A path with no field of its own (a standard heading, the calculated cost text) scrolls to the block (`data-bp`) instead.
+**When you add editable text to a renderer, wrap it with `src(ctx, '<the editor path>')`** so it can be reached from the preview.
+
 ## Private notes
 
 `data.privateNotes` holds small HTML (b, i, u, lists, line breaks; everything else is stripped by `cleanNotes` in `public/edit.js`). The renderers never read it, so it is not in the print view, the PDF or the standalone HTML (`tests/unit/render.test.js` guards this). It travels with the document: history snapshots, backups and *Duplicate* include it.

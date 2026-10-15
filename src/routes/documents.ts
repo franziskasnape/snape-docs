@@ -177,7 +177,7 @@ documents.post('/render', async (c) => {
   const dt = getDocType(b.type ?? 'offer');
   const origin = new URL(c.req.url).origin;
   const base = await buildContext(c.env, { client_id: b.clientId ?? null, artwork_id: null, number: b.number, lang: b.lang } as any, (id) => `${origin}/img/${id}`, JSON.stringify(b.data));
-  const documentHtml = dt.render(upgrade(dt, b.data), { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [] }, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
+  const documentHtml = dt.render(upgrade(dt, b.data), { ...base, client: b.client ?? base.client, artwork: b.artwork ?? [], sourceMap: true }, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
   return c.html(hostPage({ documentHtml, mode: 'preview', lang: b.lang }));
 });
 
