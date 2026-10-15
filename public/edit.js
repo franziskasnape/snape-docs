@@ -55,7 +55,7 @@ function rowHtml(bp, r, i, n) {
 function objectRowHtml(bp, r, i, n) {
   const p = `${bp}.rows.${i}`;
   return `<div class="orow"><div class="ophoto">${r.imageId != null ? `<img src="/img/${r.imageId}" alt="">` : '<span class="hint">no photo</span>'}
-      <label class="drop">${r.imageId != null ? 'Replace' : '+ Photo'}<input type="file" accept="image/*" hidden data-upload="objphoto" data-path="${p}"></label>${mover(`${bp}.rows`, i, n)}</div>
+      <label class="drop">${r.imageId != null ? 'Replace' : '+ Photo'}<input type="file" accept="image/*" hidden data-upload="objphoto" data-target="${p}"></label>${mover(`${bp}.rows`, i, n)}</div>
     <div class="ofields"><div class="ogrid">${input(`${p}.no`, 'No.')}${input(`${p}.title`, 'Title / motif')}${input(`${p}.technique`, 'Technique / support')}${input(`${p}.size`, 'Size (H × W)', { ph: '?' })}
       ${input(`${p}.hoursMin`, 'Hours (min)', { type: 'number', step: 0.5 })}${input(`${p}.hoursMax`, 'Hours (max)', { type: 'number', step: 0.5 })}</div>
       ${area(`${p}.text`, 'Assessment of this object (empty = shared text above)', 2)}</div></div>`;
@@ -74,7 +74,7 @@ function blockHtml(b, i, n) {
     body = `<label class="field">Label<select data-path="${p}.label">${Object.entries(NOTE_LABELS).map(([k, v]) => `<option value="${k}" ${b.label === k ? 'selected' : ''}>${v}</option>`).join('')}</select></label>` + area(`${p}.html`, 'Text', 4);
   } else if (b.type === 'objects') {
     body = input(`${p}.heading`, 'Heading (empty = standard)') + area(`${p}.defaultText`, 'Assessment text shared by all objects (a row can have its own)', 4)
-      + `<div class="bulk"><label class="drop">+ Photos (one row per photo, by file name)<input type="file" accept="image/*" multiple hidden data-upload="objects" data-path="${p}"></label>
+      + `<div class="bulk"><label class="drop">+ Photos (one row per photo, by file name)<input type="file" accept="image/*" multiple hidden data-upload="objects" data-target="${p}"></label>
          <span class="hint">Hours for all rows:</span><input type="number" step="0.5" id="bulkMin${i}" placeholder="min"><input type="number" step="0.5" id="bulkMax${i}" placeholder="max (optional)">${btn('apply-hours', `data-path="${p}" data-i="${i}"`, 'Apply to all')}</div>`
       + `<p class="hint">${b.rows.length} object${b.rows.length === 1 ? '' : 's'}</p>`
       + b.rows.map((r, k) => objectRowHtml(p, r, k, b.rows.length)).join('') + `<div class="addbar">${btn('add-object', `data-path="${p}"`, '+ Object')}</div>`;
@@ -88,23 +88,7 @@ function blockHtml(b, i, n) {
 }
 
 // ---- private notes: a small rich-text field whose content is never printed ----
-const NOTE_TAGS = new Set(['B', 'STRONG', 'I', 'EM', 'U', 'UL', 'OL', 'LI', 'BR', 'DIV', 'P']);
-/** Keep only simple formatting: everything else (scripts, styles, attributes, links) is dropped, its text kept. */
-function cleanNotes(html) {
-  const tpl = document.createElement('template'); tpl.innerHTML = html ?? '';
-  const walk = (node) => {
-    for (const ch of [...node.childNodes]) {
-      if (ch.nodeType === 3) continue;
-      if (ch.nodeType !== 1 || /^(SCRIPT|STYLE)$/.test(ch.tagName)) { ch.remove(); continue; }
-      walk(ch);
-      if (!NOTE_TAGS.has(ch.tagName)) ch.replaceWith(...ch.childNodes);
-      else for (const a of [...ch.attributes]) ch.removeAttribute(a.name);
-    }
-  };
-  walk(tpl.content);
-  const out = tpl.innerHTML;
-  return tpl.content.textContent.trim() || /<li/.test(out) ? out : '';
-}
+const cleanNotes = (html) => DocNotes.clean(html);               // see notes.js (unit tested)
 
 function formHtml() {
   const d = doc.data, ov = d.overview;
@@ -164,6 +148,7 @@ function formHtml() {
 function renderForm() {
   const f = $('#form'), top = f.scrollTop;
   f.innerHTML = formHtml();
+  f.querySelectorAll('textarea, input:not([type]), input[type=text], input[type=search], input[type=email], input[type=tel]').forEach((e) => { e.lang = doc.lang; e.spellcheck = true; });   // the browser checks spelling in the offer's language
   f.scrollTop = top;
   $('#hNumber').textContent = doc.number;
   $('#hLang').textContent = doc.lang.toUpperCase();
@@ -273,7 +258,7 @@ function onPreviewDblClick(e, win) {
 
 // ---- events ----
 $('#form').addEventListener('input', (e) => {
-  const el = e.target; const p = el.dataset.path; if (!p) return;
+  const el = e.target; const p = el.dataset.path; if (!p || el.type === 'file') return;
   let v = el.type === 'checkbox' ? el.checked : el.value;
   if (el.dataset.lines) v = v === '' ? undefined : v.split('\n');
   else if (el.dataset.num) v = v === '' ? (/\.(hoursMin|rate)$/.test(p) ? 0 : undefined) : Number(v);   // an empty required number is 0, never missing
@@ -304,8 +289,8 @@ $('#form').addEventListener('change', async (e) => {
     for (const [k, file] of files.entries()) {
       setState(files.length > 1 ? `Uploading photo ${k + 1} of ${files.length}…` : 'Uploading photo…');
       const imageId = await uploadImage(file);
-      if (el.dataset.upload === 'objphoto') get(el.dataset.path).imageId = imageId;
-      else if (el.dataset.upload === 'objects') { const blk = get(el.dataset.path); blk.rows.push(newObject(blk, { imageId })); }
+      if (el.dataset.upload === 'objphoto') get(el.dataset.target).imageId = imageId;
+      else if (el.dataset.upload === 'objects') { const blk = get(el.dataset.target); blk.rows.push(newObject(blk, { imageId })); }
       else if (el.dataset.upload === 'overview') doc.data.overview = { imageId, caption: doc.lang === 'de' ? 'Gesamtansicht vor der Behandlung' : 'Overall view before treatment' };
       else (get(el.dataset.arr) ?? (set(el.dataset.arr, []), get(el.dataset.arr))).push({ id: uid(), imageId, caption: '' });
     }

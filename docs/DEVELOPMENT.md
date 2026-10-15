@@ -47,11 +47,14 @@ offers). The app's own UI uses `public/app.css` and `public/editor.css`.
 
 ## Tests
 
-Two suites, both using [Vitest](https://vitest.dev). All test data is **invented** (the repository is public, never use real jobs).
+Five suites, all using [Vitest](https://vitest.dev). `npm run test:all` runs everything (about 5 minutes; the app must be running for the API and editor suites). All test data is **invented** (the repository is public, never use real jobs). Suites that talk to the running app create their own throwaway offers and delete only those.
 
 | Command | What it covers | Speed |
 | --- | --- | --- |
-| `npm test` | 67 unit tests, no browser: number/date/CHF formatting, the cost paragraph (hours, CHF, optional treatments, DE/EN), schema migrations, the History diff, offer rendering (final page, localized headings, table structure, photo layout, HTML escaping), the layout host page, backup retention, image sizes, the publish guard (against throwaway git repos) and public-repo hygiene | about 10 s |
+| `npm test` | about 165 unit tests, no browser (also the private-notes cleaner against attack strings, the word locator, JSON Patch, the schema and frozen samples of every past data version, proofreading against stand-ins for Claude and Claude Code): number/date/CHF formatting, the cost paragraph (hours, CHF, optional treatments, DE/EN), schema migrations, the History diff, offer rendering (final page, localized headings, table structure, photo layout, HTML escaping), the layout host page, backup retention, image sizes, the publish guard (against throwaway git repos) and public-repo hygiene | about 10 s |
+| `npm run test:api` | The **HTTP API** against the running app: self-description (OpenAPI, JSON Schema), create with content, validation errors with paths, JSON Patch by id, conflict detection (409), versions, photos, clients, proofreading status, the HTML export without private notes | a few seconds |
+| `npm run test:editor` | The **editor page in a real browser** (headless Chrome, running app): double-click in the preview lands on the exact word (second of two equal words, word after a tag, bullet line), spell-check language on every text field, private notes (bullets in typing order, saved, survive a reload, dangerous HTML neutralised), the stale-tab "Changed elsewhere" banner, the Proofread dialog (apply / skip / error messages, with a canned answer), object list ("Apply to all", photos one row each in name order) | about 40 s |
+| `npm run test:restore` | **Restoring a snapshot** from before a database change (built from the real migration files) into a temp folder: the database is brought up to date, documents survive, current data is moved aside | about 20 s |
 | `npm run test:layout` | **Print layout** with the real layout host (Vivliostyle) in headless Chrome, plus an end-to-end **PDF** check (A4 pages, page numbers, repeated table header, final page): 40 realistic, 16 demanding and 30 text-heavy invented offers, plus special cases (almost empty, one row, trailing/mid page breaks, English). Needs Google Chrome (or `CHROME_PATH`) and `npm install` (builds `public/vivliostyle.js`). Studio fonts are optional but make the results match real documents (`npm run fonts`) | about 2 minutes |
 
 The layout suite checks every printed page for these defects: blank page, content running past the page, a row photo

@@ -52,7 +52,7 @@ Open <http://localhost:8787>. Stop the server with `Ctrl+C` in the terminal wher
 - **Signed last page**: the contractor line is pre-filled with "Wollerau, <offer date>" and your signature standing on the line (switch off per offer)
 - **Export**: *Print / PDF* (use the browser's Save as PDF) and *Download HTML* (one self-contained file)
 - **Backup**: `npm run backup`, optional hourly automatic backups, `npm run restore`
-- **Tests**: `npm test` (unit tests) and `npm run test:layout` (print layout and PDF export in headless Chrome)
+- **Tests**: `npm test` (unit), `npm run test:api`, `npm run test:editor` (the editor in a real browser), `npm run test:restore`, `npm run test:layout` (print layout and PDF export in headless Chrome); `npm run test:all` runs all of them
 
 ## Project layout
 
