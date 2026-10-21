@@ -316,7 +316,9 @@ d('editor in the browser', () => {
     await page.goto(`${BASE}/`, { waitUntil: 'load' });
     await page.waitForSelector(`tr[data-id="${id}"]`);
     const row = await page.$eval(`tr[data-id="${id}"]`, (e) => e.innerText.replace(/\s+/g, ' '));
-    expect(row).toMatch(/draft/i); expect(await page.$eval(`tr[data-id="${id}"] td:nth-child(5) b`, (e) => e.textContent)).toBe('B'); expect(row).toMatch(/A sent 08\.10\./);   // own "Rev." column
+    expect(row).toMatch(/draft/i);
+    expect(await page.$eval(`tr[data-id="${id}"] td:nth-child(5)`, (e) => e.textContent.trim())).toBe('B');      // the Rev. column is just the letter
+    expect(row).not.toMatch(/A sent 08\.10\./);                                                              // the details are in the expansion
     // clicking the row expands its versions, each with a link to view / print it; links inside the row keep their own job
     await page.click(`tr[data-id="${id}"] td:nth-child(2)`);
     await page.waitForSelector(`tr[data-exp="${id}"] .vrow`);
