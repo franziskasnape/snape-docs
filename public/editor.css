@@ -143,3 +143,10 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 .editor-head #saveState { margin-left:auto; white-space:nowrap; font-size:13px; }
 .editor-head button, .editor-head .btn { white-space:nowrap; }
 @media (max-width: 900px) { .editor-head .head-row:first-child { flex-wrap:wrap; } .editor-head #saveState { margin-left:0; } }
+
+/* dialogs that hold lists need room (the generic dialog is 440px) */
+#sentDlg { width:min(920px, 96vw); }
+#proofDlg { width:min(760px, 96vw); }
+.sent-row { grid-template-columns:34px minmax(0,1fr) minmax(0,auto); }
+.sent-row .acts button, .sent-row .acts .btn { white-space:nowrap; }
+@media (max-width: 760px) { .sent-row { grid-template-columns:34px minmax(0,1fr); } .sent-row .acts { grid-column:2; justify-content:flex-start; } }
