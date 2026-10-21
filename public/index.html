@@ -21,7 +21,7 @@
   </div>
 
   <table class="list" id="list">
-    <thead><tr><th>Number</th><th>Title</th><th>Client</th><th>Lang</th><th>Status</th><th>Updated</th><th></th></tr></thead>
+    <thead><tr><th>Number</th><th>Title</th><th>Client</th><th>Lang</th><th>Rev.</th><th>Status</th><th>Updated</th><th></th></tr></thead>
     <tbody></tbody>
   </table>
   <p id="empty" class="muted" hidden>No documents yet.</p>
@@ -60,7 +60,8 @@ function render() {
   $('#list tbody').innerHTML = rows.map((d) => `<tr data-id="${d.id}">
     <td><a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td>
     <td>${esc(d.title || '—')}</td><td>${d.client_id ? `<a href="/client.html?id=${d.client_id}">${esc(d.client)}</a>` : '—'}</td><td>${d.lang.toUpperCase()}</td>
-    <td><span class="pill ${d.status}">${d.status}</span> <span class="muted">Rev. ${d.revisionLabel}</span>${revLine(d)}</td><td class="muted">${esc(d.updated_at.slice(0, 10))}</td>
+    <td><b>${esc(d.revisionLabel)}</b>${revLine(d)}</td>
+    <td><span class="pill ${d.status}">${d.status}</span></td><td class="muted" style="white-space:nowrap">${esc(d.updated_at.slice(0, 10))}</td>
     <td class="row-actions">
       <a href="/edit.html?id=${d.id}">Edit</a>
       <a href="/documents/${d.id}/print" target="_blank">PDF</a>
