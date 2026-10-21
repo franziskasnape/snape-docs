@@ -4,6 +4,7 @@ import { todayInStudioZone } from './format';
 import { checkData, type Issue } from './validate';
 import { DECISIONS, ISO_DATE, isDecision, moveFor, revLabel, transitionHelp, type Decision } from './status';
 import { saveVersion } from './versions';
+import { currentRenderMeta } from './renderMeta';
 import type { Lang, DocType } from './types';
 
 /** Why a status change or revision action was refused (turned into a JSON error by the routes). */
@@ -16,7 +17,7 @@ export interface RevisionSnapshot {
   clientId: number | null; client: Record<string, unknown>; artwork: { k: string; v: string }[]; data: any;
 }
 export interface RevisionRow {
-  id: number; document_id: number; rev_no: number; status: string; snapshot: string;
+  id: number; document_id: number; rev_no: number; status: string; snapshot: string; render_meta: string | null;
   sent_at: string; sent_note: string | null; decided_at: string | null; decided_note: string | null; created_at: string;
 }
 
@@ -47,6 +48,7 @@ export function publicRevision(row: RevisionRow, dt: DocType<any>) {
     revNo: row.rev_no, label: revLabel(row.rev_no), status: row.status,
     sentAt: row.sent_at, sentNote: row.sent_note, decidedAt: row.decided_at, decidedNote: row.decided_note,
     summary: dt.summary?.(snap.data) ?? null,
+    renderMeta: row.render_meta ? JSON.parse(row.render_meta) : null,        // null = recorded before this was kept
   };
 }
 
@@ -80,7 +82,7 @@ export async function markSent(env: Env, doc: DocRow, opts: { sentAt?: string; n
 
   await saveVersion(env, doc, 'status', `Revision ${revLabel(doc.revision)} sent ${sentAt}`);
   const stmts = [
-    env.DB.prepare('INSERT INTO revisions (document_id, rev_no, status, snapshot, sent_at, sent_note) VALUES (?,?,?,?,?,?)').bind(doc.id, doc.revision, 'sent', JSON.stringify(snapshot), sentAt, opts.note || null),
+    env.DB.prepare('INSERT INTO revisions (document_id, rev_no, status, snapshot, sent_at, sent_note, render_meta) VALUES (?,?,?,?,?,?,?)').bind(doc.id, doc.revision, 'sent', JSON.stringify(snapshot), sentAt, opts.note || null, JSON.stringify(await currentRenderMeta(env, dt, !!opts.from))),
     env.DB.prepare("UPDATE revisions SET status = 'superseded' WHERE document_id = ? AND rev_no < ? AND status = 'sent'").bind(doc.id, doc.revision),
     opts.from
       ? env.DB.prepare("UPDATE documents SET status = 'sent', rev = rev + 1, updated_at = datetime('now') WHERE id = ?").bind(doc.id)
@@ -149,9 +151,8 @@ export async function ensureSentRecord(env: Env, doc: DocRow): Promise<void> {
   const data = parseData(doc);
   const snapshot = await freeze(env, doc, data, await artworkOf(env, doc), doc.client_id);
   const day = doc.updated_at.slice(0, 10);
-  await env.DB.prepare('INSERT INTO revisions (document_id, rev_no, status, snapshot, sent_at, decided_at) VALUES (?,?,?,?,?,?)')
-    .bind(doc.id, doc.revision, doc.status === 'sent' ? 'sent' : doc.status, JSON.stringify(snapshot), day, isDecision(doc.status) ? day : null).run();
-  void dt;
+  await env.DB.prepare('INSERT INTO revisions (document_id, rev_no, status, snapshot, sent_at, decided_at, render_meta) VALUES (?,?,?,?,?,?,?)')
+    .bind(doc.id, doc.revision, doc.status === 'sent' ? 'sent' : doc.status, JSON.stringify(snapshot), day, isDecision(doc.status) ? day : null, JSON.stringify(await currentRenderMeta(env, dt, true))).run();
 }
 
 /** Start the next revision as a draft (first edit of a sent offer, or "Create amendment"). Returns the updated row. */

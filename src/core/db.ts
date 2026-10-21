@@ -6,7 +6,7 @@ import { getDocType } from './registry';
 import { revLabel } from './status';
 import { replacesOf } from './revisions';
 
-export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher; /** secret: .dev.vars locally, `wrangler secret put` when deployed; never in the database or the repository */ ANTHROPIC_API_KEY?: string; /** optional: send API calls elsewhere (a proxy, or a fake server in tests) */ ANTHROPIC_BASE_URL?: string; /** where the local Claude helper listens (default http://127.0.0.1:8790) */ CLAUDE_BRIDGE_URL?: string }
+export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher; /** secret: .dev.vars locally, `wrangler secret put` when deployed; never in the database or the repository */ ANTHROPIC_API_KEY?: string; /** optional: send API calls elsewhere (a proxy, or a fake server in tests) */ ANTHROPIC_BASE_URL?: string; /** where the local Claude helper listens (default http://127.0.0.1:8790) */ CLAUDE_BRIDGE_URL?: string; /** optional: the git commit this build was made from (recorded with every sent revision) */ APP_COMMIT?: string }
 
 export interface DocRow {
   id: number; type: string; number: string; lang: Lang; status: string;

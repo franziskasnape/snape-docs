@@ -42,6 +42,7 @@ An offer has one number and a series of **revisions** A, B, C. **The status belo
 - Wrong moves (draft → accepted, sent → draft…) are refused with `422 invalid_transition` and say what to do instead. Undo an answer with `DELETE …/revisions/:n/decision`; take back a "sent" record made by mistake with `DELETE …/revisions/:n` (latest revision only, while no answer is recorded); correct dates and notes with `PATCH …/revisions/:n`.
 - History restore never restores the status; restoring into a locked offer is refused like any other change (create the next revision first).
 - **An offer sent before revisions existed:** `POST …/revisions {fromVersion, sentAt}` freezes a history version as the revision (`scripts/backfill-revisions.mjs` does this for all of them).
+- Every revision carries `renderMeta`: the layout, data and engine versions and git blob ids of the design files at the time it was sent (see docs/DEVELOPMENT.md, "Legacy rendering"). `null` for revisions recorded before this existed.
 - The printed offer shows **Rev. B** next to the number (and "Ersetzt Angebot Rev. A vom …") from the second revision on; revision A prints without a mark.
 
 ## Typical flows

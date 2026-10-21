@@ -73,3 +73,11 @@ describe('the revision on the printed offer', () => {
     expect(renderOffer(makeOffer({ seed: 5, rows: 2 }), { ...context('en'), revision: { no: 2, label: 'B', replaces: { label: 'A', date: '2026-10-08' } } })).toContain('Replaces offer Rev. A of 08.10.2026');
   });
 });
+
+import { gitBlobId } from '../../src/core/renderMeta';
+describe('render metadata', () => {
+  it('computes git blob ids exactly like `git hash-object` (so the design files can be found in the repository history later)', async () => {
+    expect(await gitBlobId(new TextEncoder().encode('hello world\n'))).toBe('3b18e512dba79e4c8300dd08aeb37f8e728b8dad');
+    expect(await gitBlobId(new Uint8Array())).toBe('e69de29bb2d1d6434b8b29ae775ad8c2e48c5391');       // the empty blob
+  });
+});

@@ -1,5 +1,7 @@
 // Issued revisions through the HTTP API: sending freezes a copy, editing starts the next revision, accepted offers lock.
 // Invented content only; every offer created here is deleted afterwards.
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { afterAll, describe, expect, it } from 'vitest';
 
 const BASE = (process.env.SNAPE_URL ?? 'http://localhost:8787').replace(/\/$/, '');
@@ -179,5 +181,27 @@ d('revisions', () => {
     const id = await make();
     const ok = await call(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '8.10.2026' });
     expect(ok.status).toBe(422);
+  });
+
+  it('marking as sent records what the revision was sent with (layout, data, engine versions and design file ids)', async () => {
+    const id = await make();
+    await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
+    const m = (await get(id)).revisions[0].renderMeta;
+    expect(m).toMatchObject({ docType: 'offer', recordedLate: false, app: { name: 'snape-docs' }, engine: { name: '@vivliostyle/core' } });
+    expect(m.schemaVersion).toBeGreaterThanOrEqual(2); expect(m.renderVersion).toBeGreaterThanOrEqual(1);
+    expect(m.recordedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/); expect(m.app.version).toMatch(/^\d+\.\d+/); expect(m.engine.version).toMatch(/^\d+\.\d+/);
+    expect(m.houseCss).toMatch(/^[0-9a-f]{40}$/); expect(m.engineJs).toMatch(/^[0-9a-f]{40}$/);
+    // the id is a git blob id: it equals what git says about the file the app serves, so the exact version can be found in the history
+    const here = new URL('../../public/house.css', import.meta.url).pathname;
+    if (existsSync(here)) expect(m.houseCss).toBe(execFileSync('git', ['hash-object', here], { encoding: 'utf8' }).trim());
+    expect((await call(`/api/documents/${id}/revisions/1`)).json.renderMeta).toEqual(m);          // also on the single revision
+  });
+
+  it('a revision recorded afterwards (fromVersion) says so', async () => {
+    const id = await make();
+    await call(`/api/documents/${id}/versions`, 'POST', { note: 'as sent' });
+    const v = (await call(`/api/documents/${id}/versions`)).json[0];
+    await call(`/api/documents/${id}/revisions`, 'POST', { fromVersion: v.id, sentAt: '2026-10-08' });
+    expect((await get(id)).revisions[0].renderMeta.recordedLate).toBe(true);
   });
 });

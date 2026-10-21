@@ -37,6 +37,8 @@ export interface DocType<D = unknown> {
   statuses: string[];
   /** Current shape of `data`; older data is upgraded by `migrations` when loaded (see core/migrate.ts) */
   schemaVersion: number;
+  /** Version of the printed output of this type: bump it when the layout changes in a way sent revisions should keep their old look (recorded with every sent revision) */
+  renderVersion: number;
   migrations: ((d: any) => any)[];
   /** One line per migration (index i = what version i+2 changed); shown by GET /api/doctypes and kept in step by a test */
   schemaChangelog: string[];

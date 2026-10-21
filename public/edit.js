@@ -473,7 +473,8 @@ async function openSent(compareNo) {
     const status = r.status === 'sent' ? `<span class="pill sent">Sent ${fmtDay(r.sentAt)}</span>` : r.status === 'superseded' ? `<span class="pill withdrawn">Sent ${fmtDay(r.sentAt)} · replaced</span>` : `<span class="pill sent">Sent ${fmtDay(r.sentAt)}</span> <span class="pill ${r.status}">${STATUS_LABEL[r.status]} ${fmtDay(r.decidedAt)}</span>`;
     const latest = r.revNo === doc.revision;
     rows.push(`<div class="sent-row" data-rev="${r.revNo}"><div class="badge">${r.label}</div>
-      <div><b>Revision ${r.label}</b> ${status}<div class="muted">${esc(fig)}${r.sentNote ? ` · ${esc(r.sentNote)}` : ''}${r.decidedNote ? ` · ${esc(r.decidedNote)}` : ''}</div></div>
+      <div><b>Revision ${r.label}</b> ${status}<div class="muted">${esc(fig)}${r.sentNote ? ` · ${esc(r.sentNote)}` : ''}${r.decidedNote ? ` · ${esc(r.decidedNote)}` : ''}</div>
+        <div class="muted" style="font-size:11px" title="What this revision was sent with (kept so an old layout can be reconstructed later)">${r.renderMeta ? `Layout v${r.renderMeta.renderVersion} · data v${r.renderMeta.schemaVersion} · app ${esc(r.renderMeta.app.version)}${r.renderMeta.houseCss ? ` · design ${esc(r.renderMeta.houseCss.slice(0, 8))}` : ''}${r.renderMeta.recordedLate ? ' · recorded afterwards' : ''}` : 'Layout details were not recorded for this revision'}</div></div>
       <div class="acts"><a class="btn mini" target="_blank" href="/documents/${id}/revisions/${r.revNo}/print">View / print</a>
         <button type="button" class="mini" data-s="compare">Compare with now</button><button type="button" class="mini" data-s="copy">Copy to new draft</button>
         <button type="button" class="mini" data-s="edit">Edit dates</button>

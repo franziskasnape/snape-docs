@@ -93,6 +93,7 @@ export const offerType: DocType<OfferData> = {
   labels: { de: 'Angebot', en: 'Offer' },
   statuses: ['draft', 'sent', 'accepted', 'declined', 'withdrawn'],
   schemaVersion: 2,
+  renderVersion: 1,
   migrations: offerMigrations,
   schemaChangelog: offerChangelog,
   textFields: offerTextFields,

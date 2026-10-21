@@ -168,6 +168,24 @@ Rules are in `core/status.ts` (pure, tested) and `core/revisions.ts` (database):
 A frozen revision renders from its own snapshot (`core/revisionRender.ts`), never from the working copy; a revision above 1 prints a mark through `ctx.revision`. Document types provide `summary(data)` (offer: hours and CHF) for the revision lists.
 Editor: `renderStatus`, the dialogs and the Sent versions panel in `public/edit.js`; landing page and `client.html` list revisions. Tests: `tests/unit/status.test.js`, `tests/api/revisions.test.js`, the revisions cases in `tests/editor/editor.test.js`.
 
+## Legacy rendering: what a sent revision was sent with
+
+A sent revision freezes the offer **data**. How it *looked* depends on code that changes over time (the layout CSS, the page-layout engine, the fonts, the renderer). So every revision also records `render_meta` (migration 0005; `core/renderMeta.ts`; returned as `renderMeta` by the revisions API) at the moment it was marked as sent:
+
+| Field | Meaning |
+| --- | --- |
+| `renderVersion` | version of the printed output of the document type (`renderVersion` on the `DocType`). **Bump it by hand** whenever the layout changes in a way old revisions should keep their look, and note the change below |
+| `schemaVersion`, `docType` | version of the data shape (old data is upgraded on read, see SCHEMA.md) |
+| `app.version`, `app.commit` | app version from `package.json`; the git commit if the server was started with `APP_COMMIT` |
+| `engine` / `engineJs` | `@vivliostyle/core` version and the git blob id of the engine file that was served |
+| `houseCss`, `fonts` | git blob ids of `house.css` and the font files |
+| `recordedLate` | true when the revision was recorded afterwards (`fromVersion` backfill): the values describe the app at recording time, not at sending time. Revisions recorded before this existed have `renderMeta: null` |
+
+The ids are what `git hash-object <file>` prints, so the exact file can be found later: `git log --all --find-object=<houseCss id> -- public/house.css` shows the commits that contain that very version of the CSS; check it out to render the revision the way it was sent. Fonts and the engine file are not in git (licences), so their ids only identify the files you need to have kept.
+If printing old revisions with the current layout ever stops being good enough, this is the information a "render as of renderVersion N" mode needs; a cheaper alternative is to freeze the rendered HTML and CSS next to the data at send time.
+
+Layout versions: **1** = the layout when this was introduced (revision mark "Rev. B" in the header from the second revision on, object lists, bullet points).
+
 ## Double-click in the preview → the editor field
 
 The editor preview is rendered with `ctx.sourceMap = true`: every piece of editable text carries `data-src="<editor field path>"` (`src()` in `core/render/source.ts`; also `data-src-html` when the field holds HTML and `data-src-line` for bullet points). Printed output, PDF and the standalone file carry no markers (a test guards this). On a double click `onPreviewDblClick` (`public/edit.js`) reads the selected word and which occurrence of it it is, and `DocLocate.locate` (`public/locate.js`) finds that same occurrence in the field's source text, skipping HTML tags and entities. A path with no field of its own (a standard heading, the calculated cost text) scrolls to the block (`data-bp`) instead.
