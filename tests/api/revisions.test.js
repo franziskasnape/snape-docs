@@ -38,11 +38,16 @@ d('revisions', () => {
     expect(rev.snapshot.artwork[0].v).toBe('Erfunden');
   });
 
-  it('changing a sent offer starts revision B; revision A stays exactly as sent and can still be printed', async () => {
+  it('a sent offer is locked; "Create Revision B" starts an editable copy; revision A stays exactly as sent and can still be printed', async () => {
     const id = await make();
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-08' });
+    const locked = await edit(id, 'Versuch ohne neue Revision');
+    expect(locked.status).toBe(409); expect(locked.json.code).toBe('locked'); expect(locked.json.error).toMatch(/Create Revision B/);
+    expect((await get(id)).data.blocks[0].paragraphs[0]).toBe('Erster Text der Revision A.');   // nothing changed
+    const am = await call(`/api/documents/${id}/amend`, 'POST');
+    expect(am.status).toBe(201); expect(am.json).toMatchObject({ revision: 2, label: 'B', status: 'draft' });
     const r = await edit(id, 'Geänderter Text der Revision B.');
-    expect(r.status).toBe(200); expect(r.json.newRevisionStarted).toBe(true);
+    expect(r.status).toBe(200);
     expect(r.json).toMatchObject({ status: 'draft', revision: 2, revisionLabel: 'B' });
     const doc = await get(id);
     expect(doc.data.blocks[0].paragraphs[0]).toBe('Geänderter Text der Revision B.');
@@ -55,17 +60,18 @@ d('revisions', () => {
     expect((await call(`/documents/${id}/revisions/1/print`)).status).toBe(200);
   });
 
-  it('private notes can be edited on a sent offer without starting a revision', async () => {
+  it('private notes can be edited on a sent offer (they are not part of the offer)', async () => {
     const id = await make();
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
     const r = await call(`/api/documents/${id}`, 'PATCH', [{ op: 'add', path: '/data/privateNotes', value: '<ul><li>nur für mich</li></ul>' }]);
-    expect(r.json.newRevisionStarted).toBe(false); expect(r.json.revision).toBe(1); expect(r.json.status).toBe('sent');
+    expect(r.status).toBe(200); expect(r.json.revision).toBe(1); expect(r.json.status).toBe('sent');
     expect((await call(`/api/documents/${id}/revisions/1`)).text).not.toContain('nur für mich');   // never part of what was sent
   });
 
   it('sending revision B marks A as replaced; the client answer belongs to one revision', async () => {
     const id = await make();
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-08' });
+    await call(`/api/documents/${id}/amend`, 'POST');
     await edit(id, 'Text B');
     expect((await call(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-20' })).status).toBe(200);
     let doc = await get(id);
@@ -77,7 +83,7 @@ d('revisions', () => {
     expect(doc.status).toBe('accepted'); expect(doc.revisions[1]).toMatchObject({ status: 'accepted', decidedAt: '2026-10-22', decidedNote: 'per Telefon' });
   });
 
-  it('an accepted offer is locked until "Create amendment", which starts the next revision', async () => {
+  it('an accepted offer is locked until the next revision is created', async () => {
     const id = await make();
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
     await call(`/api/documents/${id}`, 'PUT', { status: 'accepted' });
@@ -97,14 +103,16 @@ d('revisions', () => {
     const bad = await call(`/api/documents/${id}`, 'PUT', { status: 'accepted' });
     expect(bad.status).toBe(422); expect(bad.json.code).toBe('invalid_transition'); expect(bad.json.error).toMatch(/mark it as sent first/);
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
-    expect((await call(`/api/documents/${id}`, 'PUT', { status: 'draft' })).json.error).toMatch(/editing it|Create amendment/);
+    expect((await call(`/api/documents/${id}`, 'PUT', { status: 'draft' })).json.error).toMatch(/Create Revision B/);
     expect((await call(`/api/documents/${id}`, 'PUT', { status: 'withdrawn', statusNote: 'zurückgezogen' })).status).toBe(200);
     expect((await get(id)).status).toBe('withdrawn');
     expect((await call(`/api/documents/${id}/revisions/1/decision`, 'DELETE')).status).toBe(200);
     expect((await get(id)).status).toBe('sent');
     expect((await call(`/api/documents/${id}/revisions/1/decision`, 'POST', { status: 'declined', at: '2026-10-25' })).status).toBe(200);
-    // withdrawn / declined offers are not locked: a change starts a new revision
-    expect((await edit(id, 'Neuer Anlauf')).json.revision).toBe(2);
+    // declined / withdrawn offers are locked too: a new attempt is a new revision, created on purpose
+    expect((await edit(id, 'Neuer Anlauf')).json.code).toBe('locked');
+    expect((await call(`/api/documents/${id}/amend`, 'POST')).json.revision).toBe(2);
+    expect((await edit(id, 'Neuer Anlauf')).status).toBe(200);
     expect((await call(`/api/documents/${id}/revisions/1/decision`, 'POST', { status: 'accepted' })).status).toBe(422);   // already declined
     expect((await call(`/api/documents/${id}`, 'PUT', { status: 'banana' })).status).toBe(422);
   });
@@ -124,6 +132,7 @@ d('revisions', () => {
   it('copying a sent revision gives a new draft with exactly that content', async () => {
     const id = await make();
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
+    await call(`/api/documents/${id}/amend`, 'POST');
     await edit(id, 'Text von B');
     const dup = await call('/api/documents', 'POST', { duplicateOf: id, revision: 1 });
     expect(dup.status).toBe(201); created.push(dup.json.id);
@@ -133,13 +142,16 @@ d('revisions', () => {
     expect((await call('/api/documents', 'POST', { duplicateOf: id, revision: 5 })).status).toBe(404);
   });
 
-  it('restoring a history version into a sent offer starts a new revision and never restores the status', async () => {
+  it('restoring a history version into a sent offer needs the next revision first, and never restores the status', async () => {
     const id = await make();
     await edit(id, 'Zwischenstand');
     await call(`/api/documents/${id}/versions`, 'POST', { note: 'checkpoint' });
     await edit(id, 'Endstand');
     await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
     const v = (await call(`/api/documents/${id}/versions`)).json.find((x) => x.note === 'checkpoint');
+    const refused = await call(`/api/documents/${id}/versions/${v.id}/restore`, 'POST');
+    expect(refused.status).toBe(409); expect(refused.json.code).toBe('locked');
+    await call(`/api/documents/${id}/amend`, 'POST');
     const r = await call(`/api/documents/${id}/versions/${v.id}/restore`, 'POST');
     expect(r.status).toBe(200);
     const doc = await get(id);

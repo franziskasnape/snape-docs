@@ -37,11 +37,10 @@ An offer has one number and a series of **revisions** A, B, C. **The status belo
 | `accepted` / `declined` / `withdrawn` | the client's answer (or you pulled the offer back) | `PUT {status:"accepted", statusDate, statusNote}`, or `POST …/revisions/:n/decision` |
 
 - **Sending freezes** the offer (content, client, Objekt lines) as revision A, B… with its date and note. It can be read (`GET …/revisions/:n`), printed exactly as sent (`/documents/:id/revisions/:n/print`, `npm run snape -- pdf <id> --revision n`) and compared with other states.
-- **Editing a sent, declined or withdrawn offer starts the next revision** by itself (a draft again; the date follows today again). The sent revision never changes. Private notes can be edited without starting a revision.
-- **An accepted offer is locked**: a change is refused with `409 locked` until `POST /api/documents/:id/amend` starts the next revision.
+- **Only a draft can be changed.** A sent, accepted, declined or withdrawn offer is locked: a change to its content is refused with `409 locked` (the message names the next revision). Starting the next revision is a deliberate step: `POST /api/documents/:id/amend` (the editor's **Create Revision B** button, `npm run snape -- amend <id>`). It makes an editable draft copy with today's date; the sent revision never changes. Private notes (and the title) can be edited at any time.
 - When revision B is sent, A becomes `superseded` (replaced), unless it was answered.
 - Wrong moves (draft → accepted, sent → draft…) are refused with `422 invalid_transition` and say what to do instead. Undo an answer with `DELETE …/revisions/:n/decision`; take back a "sent" record made by mistake with `DELETE …/revisions/:n` (latest revision only, while no answer is recorded); correct dates and notes with `PATCH …/revisions/:n`.
-- History restore never restores the status; restoring into a sent offer starts the next revision like any edit.
+- History restore never restores the status; restoring into a locked offer is refused like any other change (create the next revision first).
 - **An offer sent before revisions existed:** `POST …/revisions {fromVersion, sentAt}` freezes a history version as the revision (`scripts/backfill-revisions.mjs` does this for all of them).
 - The printed offer shows **Rev. B** next to the number (and "Ersetzt Angebot Rev. A vom …") from the second revision on; revision A prints without a mark.
 

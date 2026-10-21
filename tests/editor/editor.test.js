@@ -253,15 +253,19 @@ d('editor in the browser', () => {
     expect(await text('#sentBtn')).toBe('Sent versions (1)');
     expect((await doc(id)).revisions[0]).toMatchObject({ sentAt: '2026-10-08', sentNote: 'per E-Mail', status: 'sent' });
 
-    // the first change starts Revision B; the date follows today again; Revision A stays as sent
-    await page.$eval('textarea[data-path="data.blocks.0.paragraphs.0"]', (e) => { e.focus(); e.select(); });
-    await page.keyboard.type('Text der zweiten Revision.');
-    await waitFor(async () => (await text('#hRev')) === 'Rev. B', 15000, 'Revision B to start');
+    // a sent offer is locked; "Create Revision B" is a deliberate click, and starts an editable copy with today's date
+    expect(await page.$$eval('#form > fieldset:not(.notes)', (f) => f.every((x) => x.disabled))).toBe(true);
+    expect(await text('#revBanner')).toMatch(/Revision A was sent on 08\.10\.2026 and is locked/);
+    expect(await text('#statusActions')).toMatch(/Create Revision B/);
+    await page.click('#statusActions [data-sact="amend"]');                        // the confirm dialog is accepted below
+    await page.waitForFunction(() => /Rev\. B/.test(document.querySelector('#hRev')?.textContent ?? ''), { timeout: 20000 });
     expect(await text('#hStatus')).toBe('Draft');
     expect(await text('#revBanner')).toMatch(/You are editing Revision B.*Revision A was sent on 08\.10\.2026/);
-    expect(await text('#saveState')).toMatch(/Revision B started/);
+    expect(await page.$$eval('#form > fieldset', (f) => f.some((x) => x.disabled))).toBe(false);
     const dateNow = await page.$eval('input[data-path="data.meta.date"]', (e) => e.value);
     expect(dateNow).toBe(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date()));
+    await page.$eval('textarea[data-path="data.blocks.0.paragraphs.0"]', (e) => { e.focus(); e.select(); });
+    await page.keyboard.type('Text der zweiten Revision.');
     await waitFor(async () => (await doc(id)).data.blocks[0].paragraphs[0] === 'Text der zweiten Revision.', 15000, 'the text to be saved');
     expect((await api(`/api/documents/${id}/revisions/1`)).json.snapshot.data.blocks[0].paragraphs[0]).toBe('Text der ersten Revision.');
 
@@ -306,6 +310,7 @@ d('editor in the browser', () => {
     try {
     id = await make({ title: 'landing (invented)', lang: 'de', clientId: cl.json.id });
     await api(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-08' });
+    await api(`/api/documents/${id}/amend`, 'POST');
     await api(`/api/documents/${id}`, 'PATCH', [{ op: 'replace', path: '/title', value: 'landing (invented)' }, { op: 'replace', path: '/data/rate', value: 120 }]);
     const page = await browser.newPage();
     await page.goto(`${BASE}/`, { waitUntil: 'load' });

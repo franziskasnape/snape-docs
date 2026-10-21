@@ -112,11 +112,12 @@ d('API', () => {
   });
 
   it('a status change is a version; versions can be listed, saved and restored', async () => {
-    await call(`/api/documents/${id}`, 'PUT', { status: 'sent' });
-    const list = (await call(`/api/documents/${id}/versions`)).json;
+    const own = (await call('/api/documents', 'POST', { title: 'status version (invented)' })).json.id; created.push(own);   // sending locks it: not the shared test offer
+    await call(`/api/documents/${own}`, 'PUT', { status: 'sent' });
+    const list = (await call(`/api/documents/${own}/versions`)).json;
     expect(list.some((v) => v.kind === 'status')).toBe(true);
-    expect((await call(`/api/documents/${id}/versions`, 'POST', { note: 'api test' })).status).toBe(201);
-    const v = (await call(`/api/documents/${id}/versions/${list[0].id}`)).json;
+    expect((await call(`/api/documents/${own}/versions`, 'POST', { note: 'api test' })).status).toBe(201);
+    const v = (await call(`/api/documents/${own}/versions/${list[0].id}`)).json;
     expect(v.restorable).toBe(true); expect(v.issues).toEqual([]);
   });
 

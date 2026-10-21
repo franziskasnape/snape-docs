@@ -10,7 +10,7 @@ import { applyPatch, PatchError } from '../core/jsonpatch';
 import { proofread, ProofreadError, resolveProvider } from '../core/proofread';
 import type { Lang } from '../core/types';
 import { saveVersion } from '../core/versions';
-import { applyStatus, artworkOf, getRevisionRow, listRevisionRows, publicRevision, RevisionError, sameContent, startNextRevision } from '../core/revisions';
+import { applyStatus, artworkOf, getRevisionRow, listRevisionRows, publicRevision, RevisionError, sameContent } from '../core/revisions';
 import { editEffect, revLabel } from '../core/status';
 import { amend, revisions } from './revisions';
 
@@ -101,14 +101,10 @@ documents.get('/:id', async (c) => {
 
 type Doc = NonNullable<Awaited<ReturnType<typeof getDocument>>>;
 
-/**
- * An edit of a sent offer starts the next revision (the sent one stays as it was); an accepted offer is locked until
- * "Create amendment". Returns the (possibly new) row, or a refusal.
- */
-async function beginEdit(c: any, doc: Doc, contentChanged: boolean): Promise<{ doc: Doc; started: boolean } | { refuse: Response }> {
-  if (!contentChanged || doc.status === 'draft') return { doc, started: false };
-  if (editEffect(doc.status) === 'locked') return { refuse: c.json({ error: `Revision ${revLabel(doc.revision)} was accepted and is locked. Create an amendment to change the offer.`, code: 'locked', revision: doc.revision }, 409) };
-  return { doc: await startNextRevision(c.env, doc), started: true };
+/** Only a draft can be changed. A sent, accepted, declined or withdrawn offer is locked until the next revision is created on purpose. */
+function lockedResponse(c: any, doc: Doc) {
+  const next = revLabel(doc.revision + 1);
+  return c.json({ error: `Revision ${revLabel(doc.revision)} is ${doc.status} and locked. Create Revision ${next} first (the "Create Revision ${next}" button, or POST /api/documents/${doc.id}/amend), then make your change.`, code: 'locked', revision: doc.revision, status: doc.status }, 409);
 }
 
 /** Shared by PUT and PATCH: validate, keep history, write, bump the revision. `b` is any subset of {title,status,lang,clientId,artwork,data,statusDate,statusNote}. */
@@ -127,10 +123,7 @@ async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
   const artwork = await artworkOf(c.env, doc);
   const contentChanged = (!!b.data && !sameContent(b.data, upgrade(dt, JSON.parse(doc.data)))) || (!!b.artwork && JSON.stringify(b.artwork) !== JSON.stringify(artwork))
     || (b.clientId !== undefined && b.clientId !== doc.client_id);
-  const began = await beginEdit(c, doc, contentChanged);
-  if ('refuse' in began) return began.refuse;
-  doc = began.doc;
-  if (began.started && b.data && dt.newRevision) b.data = dt.newRevision(b.data, todayInStudioZone());
+  if (contentChanged && editEffect(doc.status) === 'locked') return lockedResponse(c, doc);
   try {
     // checkpoint history: at most one automatic version per AUTO_EVERY_MIN of editing
     const last = await c.env.DB.prepare('SELECT created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC LIMIT 1').bind(doc.id).first();
@@ -147,7 +140,7 @@ async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
     throw e;
   }
   const now = await getDocument(c.env, doc.id);
-  return c.json({ ok: true, rev: now!.rev, updatedAt: now!.updated_at, status: now!.status, revision: now!.revision, revisionLabel: revLabel(now!.revision), newRevisionStarted: began.started, ...(began.started ? { meta: parseData(now!).meta } : {}) });
+  return c.json({ ok: true, rev: now!.rev, updatedAt: now!.updated_at, status: now!.status, revision: now!.revision, revisionLabel: revLabel(now!.revision) });
 }
 
 const baseRevOf = (c: any, body: any): number | undefined => {
@@ -282,10 +275,9 @@ documents.post('/:id/versions/:vid/restore', async (c) => {
   const dt = getDocType(doc.type);
   const contentChanged = !sameContent(snap.data, upgrade(dt, JSON.parse(doc.data))) || (!!snap.artwork && JSON.stringify(snap.artwork) !== JSON.stringify(await artworkOf(c.env, doc)))
     || (snap.clientId !== undefined && snap.clientId !== doc.client_id);
-  const began = await beginEdit(c, doc, contentChanged);                // restoring into a sent offer starts the next revision; an accepted one is locked
-  if ('refuse' in began) return began.refuse;
-  const data = began.started && dt.newRevision ? dt.newRevision(snap.data, todayInStudioZone()) : snap.data;
-  await saveVersion(c.env, began.doc, 'restore', 'Saved automatically before a restore');
+  if (contentChanged && editEffect(doc.status) === 'locked') return lockedResponse(c, doc);    // restoring changes the offer: create the next revision first
+  const data = snap.data;
+  await saveVersion(c.env, doc, 'restore', 'Saved automatically before a restore');
   await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, client_id = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?")
     .bind(JSON.stringify(data), snap.title === undefined ? doc.title : snap.title, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();      // the status is never restored: it belongs to the revision
   if (snap.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(snap.artwork), doc.artwork_id).run();

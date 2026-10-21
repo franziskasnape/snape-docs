@@ -178,12 +178,7 @@ async function save() {
     if (clientDirty && doc.client?.id) { await api(`/api/clients/${doc.client.id}`, 'PUT', doc.client); clientDirty = false; }
     const r = await api(`/api/documents/${id}`, 'PUT', { title: doc.title, status: doc.status, clientId: doc.clientId, artwork: doc.artwork, data: doc.data, baseRev: doc.rev });
     doc.rev = r.rev;
-    if (r.newRevisionStarted) {                              // the first change to a sent offer starts the next revision: the sent one stays as it was
-      doc.status = r.status; doc.revision = r.revision; doc.revisionLabel = r.revisionLabel;
-      if (r.meta) { doc.data.meta = r.meta; for (const [p, v] of [['data.meta.date', r.meta.date], ['data.meta.validUntil', r.meta.validUntil]]) { const el = $(`#form input[data-path="${p}"]`); if (el) el.value = v ?? ''; } const cb = $('#form input[data-path="data.meta.dateAuto"]'); if (cb) cb.checked = !!r.meta.dateAuto; }
-      await refreshRevisions();
-    }
-    setState(r.newRevisionStarted ? `Revision ${doc.revisionLabel} started. The version you sent stays as it was.` : 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    setState('Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
     let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ }
     if (j.code === 'locked') { setState(j.error); renderStatus(); }
@@ -408,24 +403,23 @@ const revOf = (no) => doc.revisions.find((r) => r.revNo === no);
 async function refreshRevisions() { doc.revisions = (await api(`/api/documents/${id}`)).revisions; renderStatus(); }
 
 function renderStatus() {
-  const L = doc.revisionLabel, st = doc.status, cur = revOf(doc.revision), prev = revOf(doc.revision - 1);
+  const L = doc.revisionLabel, N = revLabelOf(doc.revision + 1), st = doc.status, cur = revOf(doc.revision), prev = revOf(doc.revision - 1);
   $('#hRev').textContent = `Rev. ${L}`;
   $('#hStatus').textContent = STATUS_LABEL[st] ?? st; $('#hStatus').className = `pill ${st}`;
   const b = (act, text, cls = 'mini') => `<button type="button" class="${cls}" data-sact="${act}">${text}</button>`;
   $('#statusActions').innerHTML = st === 'draft' ? b('sent', 'Mark as sent', 'primary')
-    : st === 'sent' ? `<span class="muted">Client answered:</span>${b('accepted', 'Accepted')}${b('declined', 'Declined')}${b('withdrawn', 'Withdrawn')}`
-    : st === 'accepted' ? b('amend', 'Create amendment') : '';
+    : st === 'sent' ? `<span class="muted">Client answered:</span>${b('accepted', 'Accepted')}${b('declined', 'Declined')}${b('withdrawn', 'Withdrawn')}${b('amend', `Create Revision ${N}`)}`
+    : b('amend', `Create Revision ${N}`);
   $('#sentBtn').textContent = `Sent versions (${doc.revisions.length})`;
-  const banner = $('#revBanner'); let html = '', locked = false;
+  const banner = $('#revBanner'); let html = '';
+  const when = cur?.decidedAt ? ` on ${fmtDay(cur.decidedAt)}` : cur?.sentAt && st === 'sent' ? ` on ${fmtDay(cur.sentAt)}` : '';
   if (st === 'draft' && doc.revision > 1 && prev) html = `You are editing <b>Revision ${L}</b> (draft). <b>Revision ${prev.label}</b> was sent on ${fmtDay(prev.sentAt)} and stays unchanged. <button type="button" class="mini" data-sact="compare">Compare with ${prev.label}</button>`;
-  else if (st === 'sent' && cur) html = `<b>Revision ${L}</b> was sent on ${fmtDay(cur.sentAt)}. Changing the offer starts <b>Revision ${revLabelOf(doc.revision + 1)}</b>; the version you sent stays as it was.`;
-  else if (st === 'accepted' && cur) { html = `<b>Revision ${L}</b> was accepted${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''} and is locked. <button type="button" class="mini" data-sact="amend">Create amendment</button>`; locked = true; }
-  else if ((st === 'declined' || st === 'withdrawn') && cur) html = `<b>Revision ${L}</b> was ${st}${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''}. Changing the offer starts <b>Revision ${revLabelOf(doc.revision + 1)}</b>.`;
-  banner.hidden = !html; banner.innerHTML = html; banner.classList.toggle('locked', locked);
-  applyLock(locked);
+  else if (st !== 'draft') html = `<b>Revision ${L}</b> was ${st}${when} and is locked, so what you sent can never change by accident. To change the offer, <b>create Revision ${N}</b>: it starts as a copy you can edit. <button type="button" class="mini" data-sact="amend">Create Revision ${N}</button>`;
+  banner.hidden = !html; banner.innerHTML = html; banner.classList.toggle('locked', st !== 'draft');
+  applyLock(st !== 'draft');
 }
-/** A locked (accepted) offer can be read and scrolled but not changed; private notes stay editable (they are never part of the offer). */
-function applyLock(locked = doc.status === 'accepted') {
+/** A locked offer (anything but a draft) can be read and scrolled but not changed; private notes stay editable (they are never part of the offer). */
+function applyLock(locked = doc.status !== 'draft') {
   $('#form').classList.toggle('locked', locked);
   for (const fs of $('#form').querySelectorAll(':scope > fieldset:not(.notes)')) fs.disabled = locked;
 }
@@ -462,7 +456,7 @@ function statusAction(act) {
   const L = doc.revisionLabel;
   if (act === 'sent') askDateNote({ title: `Mark Revision ${L} as sent`, help: `This saves a permanent copy exactly as it is now. Changing the offer afterwards starts Revision ${revLabelOf(doc.revision + 1)}.`, dateLabel: 'Sent on', ok: 'Save as sent' }, (d, n) => changeStatus('sent', d, n));
   else if (['accepted', 'declined', 'withdrawn'].includes(act)) askDateNote({ title: `Revision ${L}: ${act}`, help: act === 'withdrawn' ? 'You pulled the offer back before the client answered.' : `Record the client's answer to this revision.`, dateLabel: act === 'withdrawn' ? 'Withdrawn on' : 'Answered on', ok: 'Save' }, (d, n) => changeStatus(act, d, n));
-  else if (act === 'amend') { if (confirm(`Start Revision ${revLabelOf(doc.revision + 1)}? Revision ${L} stays accepted and unchanged.`)) api(`/api/documents/${id}/amend`, 'POST').then(() => location.reload()); }
+  else if (act === 'amend') { if (confirm(`Create Revision ${revLabelOf(doc.revision + 1)}?\n\nRevision ${L} stays exactly as it is (${doc.status}). Revision ${revLabelOf(doc.revision + 1)} starts as an editable copy with today's date.`)) save().then(() => api(`/api/documents/${id}/amend`, 'POST')).then(() => location.reload()); }
   else if (act === 'compare') openSent(doc.revision - 1);
 }
 

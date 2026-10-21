@@ -20,16 +20,15 @@ export function moveFor(from: string, to: string): 'freeze' | 'decide' | null {
   return null;
 }
 
-/** What happens when someone changes the content of an offer in this status. */
-export function editEffect(status: string): 'in-place' | 'new-revision' | 'locked' {
-  if (status === 'draft') return 'in-place';
-  if (status === 'accepted') return 'locked';
-  return 'new-revision';                  // sent, declined, withdrawn: the sent revision stays as it was, the edit starts the next one
+/** What happens when someone changes the content of an offer in this status. Only a draft can be changed: everything else
+ *  (sent, accepted, declined, withdrawn) is locked until the next revision is created on purpose. */
+export function editEffect(status: string): 'in-place' | 'locked' {
+  return status === 'draft' ? 'in-place' : 'locked';
 }
 
 export function transitionHelp(from: string, to: string): string {
   if (from === to) return `already ${from}`;
-  if (to === 'draft') return 'a sent offer becomes a draft again by editing it (new revision) or with "Create amendment"';
+  if (to === 'draft') return 'to change a sent offer create the next revision ("Create Revision B", or POST /api/documents/:id/amend)';
   if (to === 'sent') return from === 'draft' ? '' : `only a draft can be marked as sent (it is ${from})`;
   if (isDecision(to)) return from === 'sent' ? '' : from === 'draft' ? 'mark it as sent first' : `it is already ${from}: undo that decision first`;
   return `unknown status "${to}"`;

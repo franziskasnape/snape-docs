@@ -18,15 +18,14 @@ describe('status rules', () => {
     expect(moveFor('sent', 'draft')).toBeNull(); expect(moveFor('accepted', 'sent')).toBeNull(); expect(moveFor('draft', 'draft')).toBeNull();
     expect(isDecision('withdrawn')).toBe(true); expect(isDecision('sent')).toBe(false);
   });
-  it('editing: a draft in place, sent / declined / withdrawn start the next revision, accepted is locked', () => {
+  it('editing: only a draft can be changed, everything else is locked until the next revision is created', () => {
     expect(editEffect('draft')).toBe('in-place');
-    for (const s of ['sent', 'declined', 'withdrawn']) expect(editEffect(s)).toBe('new-revision');
-    expect(editEffect('accepted')).toBe('locked');
+    for (const s of ['sent', 'accepted', 'declined', 'withdrawn']) expect(editEffect(s)).toBe('locked');
   });
   it('explains refused moves in plain words', () => {
     expect(transitionHelp('draft', 'accepted')).toMatch(/mark it as sent first/);
     expect(transitionHelp('accepted', 'declined')).toMatch(/undo that decision/);
-    expect(transitionHelp('sent', 'draft')).toMatch(/editing|amendment/);
+    expect(transitionHelp('sent', 'draft')).toMatch(/Create Revision B/);
     expect(transitionHelp('sent', 'sent')).toMatch(/already/);
   });
 });
