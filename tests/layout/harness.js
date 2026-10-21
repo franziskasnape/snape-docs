@@ -36,8 +36,8 @@ export async function startHarness() {
   const browser = await puppeteer.launch({ executablePath: findChrome(), headless: true, args: ['--no-sandbox', '--font-render-hinting=none', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });   // several pages are laid out at once: never throttle the ones in the background
   let n = 0;
 
-  async function open(data, lang, mode) {
-    const documentHtml = renderOffer(JSON.parse(JSON.stringify(data)), context(lang), { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
+  async function open(data, lang, mode, extraCtx = {}) {
+    const documentHtml = renderOffer(JSON.parse(JSON.stringify(data)), { ...context(lang), ...extraCtx }, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
     const id = ++n; pages.set(id, hostPage({ documentHtml, mode, lang }));
     const page = await browser.newPage();
     await page.setViewport({ width: 900, height: 1200 });
@@ -50,8 +50,8 @@ export async function startHarness() {
   }
 
   /** Lay out offer data; resolves to an array with one report per printed page. `screenshotDir` also saves page-N.png. */
-  async function render(data, lang = 'de', { screenshotDir, beforeScreenshot } = {}) {
-    const { page, done } = await open(data, lang, 'preview');
+  async function render(data, lang = 'de', { screenshotDir, beforeScreenshot, ctx } = {}) {
+    const { page, done } = await open(data, lang, 'preview', ctx);
     try {
       const report = await page.evaluate(analyze);
       if (beforeScreenshot) await beforeScreenshot(page, report);      // e.g. draw annotations for a bug report

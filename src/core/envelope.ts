@@ -20,6 +20,8 @@ const common = (dt: Pick<DocType, 'statuses'>) => ({
 export const documentWrite = (dt: Pick<DocType, 'statuses'>) => z.strictObject({
   ...common(dt), data: z.unknown().describe('type specific, see /api/doctypes/{type}/schema'),
   baseRev: z.number().int().describe('revision you last read; the save is refused (409) if the document changed since'),
+  statusDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'must be a date like 2026-10-31').describe('with `status`: the day it was sent / the client answered (default today)'),
+  statusNote: z.string().max(500).describe('with `status`: a note, e.g. "per e-mail"'),
 }).partial();
 
 /** Body of POST /api/documents. */

@@ -59,14 +59,21 @@ function render() {
   const rows = docs.filter((d) => (!st || d.status === st) && [d.number, d.client, d.title].join(' ').toLowerCase().includes(q));
   $('#list tbody').innerHTML = rows.map((d) => `<tr data-id="${d.id}">
     <td><a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td>
-    <td>${esc(d.title || '—')}</td><td>${esc(d.client || '—')}</td><td>${d.lang.toUpperCase()}</td>
-    <td><span class="pill ${d.status}">${d.status}</span></td><td class="muted">${esc(d.updated_at.slice(0, 10))}</td>
+    <td>${esc(d.title || '—')}</td><td>${d.client_id ? `<a href="/client.html?id=${d.client_id}">${esc(d.client)}</a>` : '—'}</td><td>${d.lang.toUpperCase()}</td>
+    <td><span class="pill ${d.status}">${d.status}</span> <span class="muted">Rev. ${d.revisionLabel}</span>${revLine(d)}</td><td class="muted">${esc(d.updated_at.slice(0, 10))}</td>
     <td class="row-actions">
       <a href="/edit.html?id=${d.id}">Edit</a>
       <a href="/documents/${d.id}/print" target="_blank">PDF</a>
       <button data-act="dup" class="link">Duplicate</button>
       <button data-act="del" class="link danger">Delete</button></td></tr>`).join('');
   $('#empty').hidden = rows.length > 0;
+}
+const day = (iso) => (iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' : '');
+/** "A sent 08.10. · B draft": what was sent when, at a glance */
+function revLine(d) {
+  const parts = (d.revisions ?? []).map((r) => `${r.label} ${r.status === 'superseded' ? 'sent' : r.status} ${day(r.decidedAt || r.sentAt)}`);
+  if (d.status === 'draft' && d.revision > 1) parts.push(`${d.revisionLabel} draft`);
+  return parts.length ? `<div class="muted" style="font-size:12px">${esc(parts.join(' · '))}</div>` : '';
 }
 const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 

@@ -3,13 +3,15 @@ import type { Lang, Party, RenderContext } from './types';
 import { imageSize } from './imageSize';
 import { upgrade } from './migrate';
 import { getDocType } from './registry';
+import { revLabel } from './status';
+import { replacesOf } from './revisions';
 
 export interface Env { DB: D1Database; IMAGES: R2Bucket; ASSETS: Fetcher; /** secret: .dev.vars locally, `wrangler secret put` when deployed; never in the database or the repository */ ANTHROPIC_API_KEY?: string; /** optional: send API calls elsewhere (a proxy, or a fake server in tests) */ ANTHROPIC_BASE_URL?: string; /** where the local Claude helper listens (default http://127.0.0.1:8790) */ CLAUDE_BRIDGE_URL?: string }
 
 export interface DocRow {
   id: number; type: string; number: string; lang: Lang; status: string;
   client_id: number | null; artwork_id: number | null; parent_id: number | null;
-  title: string | null; data: string; created_at: string; updated_at: string; rev: number;
+  title: string | null; data: string; created_at: string; updated_at: string; rev: number; revision: number;
 }
 
 export async function getDocument(env: Env, id: number): Promise<DocRow | null> {
@@ -47,6 +49,7 @@ export async function buildContext(env: Env, doc: DocRow, imageSrc: RenderContex
     imageSrc,
     imageDims: await loadImageDims(env, dataJson ?? doc.data ?? ''),
     signature: { src: st.signatureImageId ? imageSrc(st.signatureImageId) : '', place: st.signaturePlace, baseline: st.signatureBaseline },
+    revision: { no: doc.revision ?? 1, label: revLabel(doc.revision ?? 1), replaces: await replacesOf(env, doc.id, doc.revision ?? 1) },
   };
 }
 

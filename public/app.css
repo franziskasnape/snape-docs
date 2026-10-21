@@ -42,6 +42,8 @@ table.list tr:hover td { background:#faf8f4; }
 .pill.sent { background:#e1e9f2; color:#35597f; }
 .pill.accepted { background:#e0eddc; color:#3d6b34; }
 .pill.declined { background:#f2dfdb; color:var(--danger); }
+.pill.withdrawn { background:#ece8e0; color:#6f6558; }
+.pill.draft { background:#f6edd2; color:#7a5a12; }
 
 dialog { border:0; border-radius:10px; padding:24px; width:min(440px, 92vw); box-shadow:0 10px 40px rgba(0,0,0,.25); }
 dialog::backdrop { background:rgba(26,22,19,.45); }

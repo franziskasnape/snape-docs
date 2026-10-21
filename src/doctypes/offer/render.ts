@@ -9,7 +9,7 @@ import { measures } from '../../core/render/blocks/measures';
 import { objects } from '../../core/render/blocks/objects';
 import { esc } from '../../core/format';
 import { src } from '../../core/render/source';
-import { costLines, costParagraph } from './cost';
+import { costLines, costParagraph, offerTotals } from './cost';
 import { offerLabels } from './i18n';
 import type { OfferData } from './schema';
 import { offerSchema } from './zod';
@@ -67,7 +67,7 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
       <div class="sign-box"><div class="sign-rule"></div><div class="sign-caption">${C.signClient}</div></div></div></div>`;
 
   const body = `<div class="doc-title-row"><div class="doc-eyebrow">${esc(d.meta.eyebrow ?? L.eyebrow)}</div>
-    <div class="doc-title">${esc(d.meta.title ?? L.title)}</div></div><div class="hr"></div>
+    <div class="doc-title">${esc(d.meta.title ?? L.title)}</div>${ctx.revision?.replaces ? `<div class="doc-replaces">${esc(L.replaces.replace('{label}', ctx.revision.replaces.label).replace('{date}', fmtDate(ctx.revision.replaces.date)))}</div>` : ''}</div><div class="hr"></div>
     ${info}${blocks}
     <section class="final-page">
       <div class="section-heading"${src(ctx, '#cost')}>${esc(L.costHeading)}</div><div${src(ctx, '#cost')}>${costLines(d, ctx.lang)}</div><div class="section-body"${src(ctx, d.cost.overrideHtml ? 'data.cost.overrideHtml' : '#cost', { html: !!d.cost.overrideHtml })}>${costParagraph(d, ctx.lang)}</div>
@@ -76,8 +76,8 @@ export function renderOffer(d: OfferData, ctx: RenderContext, opts: OfferRenderO
 
   return frame({
     lang: ctx.lang,
-    title: `Snape-Conservation_${ctx.number}_${ctx.lang === 'de' ? 'Angebot' : 'Offer'}`,
-    metaRows: [[L.number, ctx.number], ...(d.meta.date ? [[C.date, fmtDate(d.meta.date)] as [string, string]] : []), ...(d.meta.validUntil ? [[L.validUntil, fmtDate(d.meta.validUntil)] as [string, string]] : [])],
+    title: `Snape-Conservation_${ctx.number}${ctx.revision && ctx.revision.no > 1 ? `_Rev-${ctx.revision.label}` : ''}_${ctx.lang === 'de' ? 'Angebot' : 'Offer'}`,
+    metaRows: [[L.number, ctx.revision && ctx.revision.no > 1 ? `${ctx.number} · Rev. ${ctx.revision.label}` : ctx.number], ...(d.meta.date ? [[C.date, fmtDate(d.meta.date)] as [string, string]] : []), ...(d.meta.validUntil ? [[L.validUntil, fmtDate(d.meta.validUntil)] as [string, string]] : [])],
     body, ...opts,
   });
 }
@@ -91,11 +91,14 @@ const daysBetween = (a: string, b: string) => Math.round((Date.parse(b + 'T00:00
 export const offerType: DocType<OfferData> = {
   id: 'offer', prefix: 'ANG',
   labels: { de: 'Angebot', en: 'Offer' },
-  statuses: ['draft', 'sent', 'accepted', 'declined'],
+  statuses: ['draft', 'sent', 'accepted', 'declined', 'withdrawn'],
   schemaVersion: 2,
   migrations: offerMigrations,
   schemaChangelog: offerChangelog,
   textFields: offerTextFields,
+  summary: (d) => offerTotals(d),
+  /** A new revision is a new offer date: the date follows today again, the validity keeps its length. */
+  newRevision(d, today) { return this.refresh!({ ...d, meta: { ...d.meta, dateAuto: true } }, 'draft', today); },
   schema: offerSchema,
   /** "Follow today's date": while a draft, the offer date is today's date and "valid until" keeps its distance from it. */
   refresh(d, status, today) {

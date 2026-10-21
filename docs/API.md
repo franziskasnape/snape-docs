@@ -26,6 +26,25 @@ An agent should start with `GET /api/openapi.json`, then `GET /api/doctypes/offe
 - Every save is validated against the schema (envelope: [src/core/envelope.ts](../src/core/envelope.ts), data: `GET /api/doctypes/offer/schema`; versioning rules in [SCHEMA.md](SCHEMA.md)). Documents carry `schemaVersion`; data you send is upgraded to it, data newer than the app is refused. Unknown top-level fields are refused (a typo cannot silently do nothing). A history version can be restored only if it validates: `GET …/versions/:vid` says (`restorable`, `issues`).
 - Errors are always JSON: `{"error", "code", "issues":[{"path","message"}]}` with codes `validation` (422), `conflict` (409), `patch_failed` (400, with `opIndex`), `bad_request`, `bad_json`, `not_found`, `in_use`, `not_restorable` (422).
 
+## Revisions and status
+
+An offer has one number and a series of **revisions** A, B, C. **The status belongs to a revision.**
+
+| Status | Meaning | How to get there |
+| --- | --- | --- |
+| `draft` | being written | new offers; the first change to a sent offer; `POST …/amend` |
+| `sent` | sent to the client: a permanent copy was frozen | `PUT {status:"sent", statusDate, statusNote}` (or `npm run snape -- send <id>`) |
+| `accepted` / `declined` / `withdrawn` | the client's answer (or you pulled the offer back) | `PUT {status:"accepted", statusDate, statusNote}`, or `POST …/revisions/:n/decision` |
+
+- **Sending freezes** the offer (content, client, Objekt lines) as revision A, B… with its date and note. It can be read (`GET …/revisions/:n`), printed exactly as sent (`/documents/:id/revisions/:n/print`, `npm run snape -- pdf <id> --revision n`) and compared with other states.
+- **Editing a sent, declined or withdrawn offer starts the next revision** by itself (a draft again; the date follows today again). The sent revision never changes. Private notes can be edited without starting a revision.
+- **An accepted offer is locked**: a change is refused with `409 locked` until `POST /api/documents/:id/amend` starts the next revision.
+- When revision B is sent, A becomes `superseded` (replaced), unless it was answered.
+- Wrong moves (draft → accepted, sent → draft…) are refused with `422 invalid_transition` and say what to do instead. Undo an answer with `DELETE …/revisions/:n/decision`; take back a "sent" record made by mistake with `DELETE …/revisions/:n` (latest revision only, while no answer is recorded); correct dates and notes with `PATCH …/revisions/:n`.
+- History restore never restores the status; restoring into a sent offer starts the next revision like any edit.
+- **An offer sent before revisions existed:** `POST …/revisions {fromVersion, sentAt}` freezes a history version as the revision (`scripts/backfill-revisions.mjs` does this for all of them).
+- The printed offer shows **Rev. B** next to the number (and "Ersetzt Angebot Rev. A vom …") from the second revision on; revision A prints without a mark.
+
 ## Typical flows
 
 ```bash

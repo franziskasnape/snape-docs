@@ -9,36 +9,29 @@ import { checkEnvelope, documentCreate, documentWrite } from '../core/envelope';
 import { applyPatch, PatchError } from '../core/jsonpatch';
 import { proofread, ProofreadError, resolveProvider } from '../core/proofread';
 import type { Lang } from '../core/types';
+import { saveVersion } from '../core/versions';
+import { applyStatus, artworkOf, getRevisionRow, listRevisionRows, publicRevision, RevisionError, sameContent, startNextRevision } from '../core/revisions';
+import { editEffect, revLabel } from '../core/status';
+import { amend, revisions } from './revisions';
 
 export const documents = new Hono<{ Bindings: Env }>();
 
 const AUTO_EVERY_MIN = 10;   // at most one automatic checkpoint per 10 minutes of editing
-const AUTO_KEEP = 100;       // oldest automatic checkpoints are pruned; manual/status/restore versions are kept
-
-/** Full restorable state of a document: everything the editor can change. */
-async function snapshotOf(env: Env, doc: NonNullable<Awaited<ReturnType<typeof getDocument>>>) {
-  const art = doc.artwork_id ? await env.DB.prepare('SELECT fields FROM artworks WHERE id = ?').bind(doc.artwork_id).first<{ fields: string }>() : null;
-  return JSON.stringify({ title: doc.title, status: doc.status, clientId: doc.client_id, artwork: art ? JSON.parse(art.fields) : [], data: parseData(doc) });
-}
-
-async function saveVersion(env: Env, doc: NonNullable<Awaited<ReturnType<typeof getDocument>>>, kind: string, note?: string | null) {
-  await env.DB.prepare('INSERT INTO document_versions (document_id, data, note, kind) VALUES (?,?,?,?)').bind(doc.id, await snapshotOf(env, doc), note || null, kind).run();
-  if (kind === 'auto') await env.DB.prepare(`DELETE FROM document_versions WHERE document_id = ? AND kind = 'auto' AND id NOT IN (SELECT id FROM document_versions WHERE document_id = ? AND kind = 'auto' ORDER BY id DESC LIMIT ?)`).bind(doc.id, doc.id, AUTO_KEEP).run();
-}
 
 // List (optionally filtered by type)
 documents.get('/', async (c) => {
   const type = c.req.query('type');
-  const sql = `SELECT d.id, d.type, d.number, d.lang, d.status, d.title, d.updated_at, d.rev, d.client_id, c.name AS client
+  const sql = `SELECT d.id, d.type, d.number, d.lang, d.status, d.title, d.updated_at, d.rev, d.revision, d.client_id, c.name AS client
     FROM documents d LEFT JOIN clients c ON c.id = d.client_id ${type ? 'WHERE d.type = ?' : ''} ORDER BY d.updated_at DESC, d.id DESC`;
   const stmt = c.env.DB.prepare(sql);
-  const { results } = await (type ? stmt.bind(type) : stmt).all();
-  return c.json(results);
+  const { results } = await (type ? stmt.bind(type) : stmt).all<any>();
+  const revs = (await c.env.DB.prepare('SELECT document_id, rev_no, status, sent_at, decided_at FROM revisions ORDER BY rev_no').all<any>()).results;
+  return c.json(results.map((d) => ({ ...d, revisionLabel: revLabel(d.revision), revisions: revs.filter((r) => r.document_id === d.id).map((r) => ({ revNo: r.rev_no, label: revLabel(r.rev_no), status: r.status, sentAt: r.sent_at, decidedAt: r.decided_at })) })));
 });
 
 // Create: new, or copy of an existing document
 documents.post('/', async (c) => {
-  const body = await c.req.json<{ type?: string; lang?: Lang; clientId?: number; duplicateOf?: number; title?: string; status?: string; artwork?: { k: string; v: string }[]; data?: any }>();
+  const body = await c.req.json<{ type?: string; lang?: Lang; clientId?: number; duplicateOf?: number; revision?: number; title?: string; status?: string; artwork?: { k: string; v: string }[]; data?: any }>();
   const today = todayInStudioZone();
   const settings = await getSettings(c.env);
   if (!body || typeof body !== 'object' || Array.isArray(body)) return c.json({ error: 'the body must be a JSON object', code: 'bad_request' }, 400);
@@ -53,11 +46,18 @@ documents.post('/', async (c) => {
       const a = await c.env.DB.prepare('SELECT client_id, fields, overview_image_id FROM artworks WHERE id = ?').bind(src.artwork_id).first<any>();
       artworkId = (await c.env.DB.prepare('INSERT INTO artworks (client_id, fields, overview_image_id) VALUES (?,?,?)').bind(a.client_id, a.fields, a.overview_image_id).run()).meta.last_row_id as number;
     }
-    const data = parseData(src);
+    let data = parseData(src), clientId = src.client_id;
+    if (body.revision) {                                                       // copy a sent revision exactly as it was sent
+      const row = await getRevisionRow(c.env, src.id, body.revision);
+      if (!row) return c.json({ error: `revision ${revLabel(body.revision)} was never sent`, code: 'not_found' }, 404);
+      const snap = JSON.parse(row.snapshot);
+      data = upgrade(dt, snap.data); clientId = snap.clientId ?? null;
+      if (artworkId) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(snap.artwork), artworkId).run();
+    }
     if (data.meta) { data.meta.date = today; }
     const id = (await c.env.DB.prepare(
       `INSERT INTO documents (type, number, lang, status, client_id, artwork_id, parent_id, title, data) VALUES (?,?,?,?,?,?,?,?,?)`
-    ).bind(src.type, number, src.lang, 'draft', src.client_id, artworkId, null, src.title, JSON.stringify(data)).run()).meta.last_row_id;
+    ).bind(src.type, number, src.lang, 'draft', clientId, artworkId, null, src.title, JSON.stringify(data)).run()).meta.last_row_id;
     return c.json({ id, number }, 201);
   }
 
@@ -95,12 +95,23 @@ documents.get('/:id', async (c) => {
   return c.json({
     id: doc.id, type: doc.type, number: doc.number, lang: doc.lang, status: doc.status, title: doc.title,
     clientId: doc.client_id, client, artwork: art ? JSON.parse(art.fields) : [], data, schemaVersion: dt.schemaVersion, updatedAt: doc.updated_at, rev: doc.rev,
+    revision: doc.revision, revisionLabel: revLabel(doc.revision), revisions: (await listRevisionRows(c.env, doc.id)).map((r) => publicRevision(r, dt)),
   });
 });
 
 type Doc = NonNullable<Awaited<ReturnType<typeof getDocument>>>;
 
-/** Shared by PUT and PATCH: validate, keep history, write, bump the revision. `b` is any subset of {title,status,lang,clientId,artwork,data}. */
+/**
+ * An edit of a sent offer starts the next revision (the sent one stays as it was); an accepted offer is locked until
+ * "Create amendment". Returns the (possibly new) row, or a refusal.
+ */
+async function beginEdit(c: any, doc: Doc, contentChanged: boolean): Promise<{ doc: Doc; started: boolean } | { refuse: Response }> {
+  if (!contentChanged || doc.status === 'draft') return { doc, started: false };
+  if (editEffect(doc.status) === 'locked') return { refuse: c.json({ error: `Revision ${revLabel(doc.revision)} was accepted and is locked. Create an amendment to change the offer.`, code: 'locked', revision: doc.revision }, 409) };
+  return { doc: await startNextRevision(c.env, doc), started: true };
+}
+
+/** Shared by PUT and PATCH: validate, keep history, write, bump the revision. `b` is any subset of {title,status,lang,clientId,artwork,data,statusDate,statusNote}. */
 async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
   const dt = getDocType(doc.type);
   if (baseRev !== undefined && baseRev !== doc.rev)
@@ -112,20 +123,31 @@ async function saveDoc(c: any, doc: Doc, b: any, baseRev: number | undefined) {
     const issues = checkData(dt, b.data);
     if (issues) return c.json({ error: 'validation failed', code: 'validation', issues }, 422);   // never store data that cannot be printed properly
   }
-  // keep history: snapshot the state *before* this save on status changes, and as a periodic checkpoint
-  if (b.status && b.status !== doc.status) await saveVersion(c.env, doc, 'status', `Status: ${doc.status} → ${b.status}`);
-  else {
+  const origStatus = doc.status, wantStatus = b.status && b.status !== origStatus ? b.status : undefined;   // an editor that sends back the status it read is not asking for a change
+  const artwork = await artworkOf(c.env, doc);
+  const contentChanged = (!!b.data && !sameContent(b.data, upgrade(dt, JSON.parse(doc.data)))) || (!!b.artwork && JSON.stringify(b.artwork) !== JSON.stringify(artwork))
+    || (b.clientId !== undefined && b.clientId !== doc.client_id);
+  const began = await beginEdit(c, doc, contentChanged);
+  if ('refuse' in began) return began.refuse;
+  doc = began.doc;
+  if (began.started && b.data && dt.newRevision) b.data = dt.newRevision(b.data, todayInStudioZone());
+  try {
+    // checkpoint history: at most one automatic version per AUTO_EVERY_MIN of editing
     const last = await c.env.DB.prepare('SELECT created_at FROM document_versions WHERE document_id = ? ORDER BY id DESC LIMIT 1').bind(doc.id).first();
     const ageMin = last ? (Date.now() - new Date((last as any).created_at.replace(' ', 'T') + 'Z').getTime()) / 60000 : Infinity;
     if (ageMin > AUTO_EVERY_MIN && b.data && JSON.stringify(b.data) !== JSON.stringify(parseData(doc))) await saveVersion(c.env, doc, 'auto');
+    await c.env.DB.prepare(
+      `UPDATE documents SET title = ?, lang = ?, client_id = ?, data = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?`
+    ).bind(b.title === undefined ? doc.title : b.title, b.lang ?? doc.lang, b.clientId === undefined ? doc.client_id : b.clientId,
+      b.data ? JSON.stringify(b.data) : doc.data, doc.id).run();
+    if (b.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(b.artwork), doc.artwork_id).run();
+    if (wantStatus) await applyStatus(c.env, (await getDocument(c.env, doc.id))!, wantStatus, { at: b.statusDate, note: b.statusNote });
+  } catch (e) {
+    if (e instanceof RevisionError) return c.json({ error: e.message, code: e.code, ...(e.issues ? { issues: e.issues } : {}) }, e.status);
+    throw e;
   }
-  await c.env.DB.prepare(
-    `UPDATE documents SET title = ?, status = ?, lang = ?, client_id = ?, data = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?`
-  ).bind(b.title === undefined ? doc.title : b.title, b.status ?? doc.status, b.lang ?? doc.lang, b.clientId === undefined ? doc.client_id : b.clientId,
-    b.data ? JSON.stringify(b.data) : doc.data, doc.id).run();
-  if (b.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(b.artwork), doc.artwork_id).run();
   const now = await getDocument(c.env, doc.id);
-  return c.json({ ok: true, rev: now!.rev, updatedAt: now!.updated_at });
+  return c.json({ ok: true, rev: now!.rev, updatedAt: now!.updated_at, status: now!.status, revision: now!.revision, revisionLabel: revLabel(now!.revision), newRevisionStarted: began.started, ...(began.started ? { meta: parseData(now!).meta } : {}) });
 }
 
 const baseRevOf = (c: any, body: any): number | undefined => {
@@ -160,12 +182,17 @@ documents.patch('/:id', async (c) => {
   return saveDoc(c, doc, next, baseRevOf(c, Array.isArray(body) ? {} : body));
 });
 
+documents.route('/:id/revisions', revisions);
+// Start the next revision of a sent or accepted offer ("Create amendment")
+documents.post('/:id/amend', amend);
+
 documents.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'));
   if (!(await getDocument(c.env, id))) return c.json({ error: 'not found', code: 'not_found' }, 404);
   // images may be shared with duplicates: detach instead of cascading
   await c.env.DB.batch([
     c.env.DB.prepare('UPDATE images SET document_id = NULL WHERE document_id = ?').bind(id),
+    c.env.DB.prepare('DELETE FROM revisions WHERE document_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM documents WHERE id = ?').bind(id),
   ]);
   return c.json({ ok: true });
@@ -249,9 +276,15 @@ documents.post('/:id/versions/:vid/restore', async (c) => {
   snap.data = upgrade(getDocType(doc.type), snap.data);
   const problems = snapshotProblems(getDocType(doc.type), snap);
   if (problems) return c.json({ error: 'This version cannot be restored: it would not be a valid document.', code: 'not_restorable', issues: problems }, 422);
-  await saveVersion(c.env, doc, 'restore', 'Saved automatically before a restore');
-  await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, status = ?, client_id = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?")
-    .bind(JSON.stringify(snap.data), snap.title === undefined ? doc.title : snap.title, snap.status ?? doc.status, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();
+  const dt = getDocType(doc.type);
+  const contentChanged = !sameContent(snap.data, upgrade(dt, JSON.parse(doc.data))) || (!!snap.artwork && JSON.stringify(snap.artwork) !== JSON.stringify(await artworkOf(c.env, doc)))
+    || (snap.clientId !== undefined && snap.clientId !== doc.client_id);
+  const began = await beginEdit(c, doc, contentChanged);                // restoring into a sent offer starts the next revision; an accepted one is locked
+  if ('refuse' in began) return began.refuse;
+  const data = began.started && dt.newRevision ? dt.newRevision(snap.data, todayInStudioZone()) : snap.data;
+  await saveVersion(c.env, began.doc, 'restore', 'Saved automatically before a restore');
+  await c.env.DB.prepare("UPDATE documents SET data = ?, title = ?, client_id = ?, rev = rev + 1, updated_at = datetime('now') WHERE id = ?")
+    .bind(JSON.stringify(data), snap.title === undefined ? doc.title : snap.title, snap.clientId === undefined ? doc.client_id : snap.clientId, id).run();      // the status is never restored: it belongs to the revision
   if (snap.artwork && doc.artwork_id) await c.env.DB.prepare('UPDATE artworks SET fields = ? WHERE id = ?').bind(JSON.stringify(snap.artwork), doc.artwork_id).run();
   return c.json({ ok: true });
 });

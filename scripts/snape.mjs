@@ -23,12 +23,16 @@ documents
                                            new document; the JSON (file or stdin) may hold {type, lang, title, status, clientId, artwork, data}
   put <id> <file.json|-> [--rev n]         replace parts: any subset of {title,status,lang,clientId,artwork,data}
   patch <id> <ops.json|-> [--rev n]        JSON Patch operations (see docs/API.md); paths may use /data/blocks/@<blockId>/...
-  status <id> <draft|sent|accepted|declined>
-  duplicate <id>
+  send <id> [--date 2026-10-08] [--note "per e-mail"]     mark the draft as sent: freezes it as Revision A, B, C ...
+  answer <id> <accepted|declined|withdrawn> [--date ...] [--note ...]   record the client's answer to the sent revision
+  amend <id>                               start the next revision of a sent or accepted offer (accepted offers are locked until then)
+  revisions <id>                           every revision that was sent: dates, notes, status, totals
+  revision <id> <n>                        one revision with its frozen content
+  duplicate <id> [--revision n]            copy an offer (or a sent revision) into a new draft
   delete <id> --yes                        permanent (with its history): take a backup first
   html <id> [out.html]                     the document as script-free HTML
   standalone <id> [out.html]               self-contained HTML file
-  pdf <id> [out.pdf]                       A4 PDF made by headless Chrome (needs Google Chrome; the app must be running)
+  pdf <id> [out.pdf] [--revision n]        A4 PDF made by headless Chrome (needs Google Chrome; the app must be running); --revision = a sent revision as it was sent
 history
   versions <id>                            list
   save-version <id> ["note"]               save a named version now
@@ -97,8 +101,12 @@ switch (cmd) {
   }
   case 'put': out(await http(`/api/documents/${id(a)}`, { method: 'PUT', body: { ...readJson(b ?? fail('put <id> <file.json|->')), ...withRev() } })); break;
   case 'patch': { const ops = readJson(b ?? fail('patch <id> <ops.json|->')); out(await http(`/api/documents/${id(a)}`, { method: 'PATCH', body: { ops: Array.isArray(ops) ? ops : ops.ops, ...withRev() } })); break; }
-  case 'status': out(await http(`/api/documents/${id(a)}`, { method: 'PUT', body: { status: b ?? fail('status <id> <status>'), ...withRev() } })); break;
-  case 'duplicate': out(await http('/api/documents', { method: 'POST', body: { duplicateOf: id(a) } })); break;
+  case 'send': { const date = flag('date'), note = flag('note'); out(await http(`/api/documents/${id(a)}`, { method: 'PUT', body: { status: 'sent', ...(date ? { statusDate: date } : {}), ...(note ? { statusNote: note } : {}), ...withRev() } })); break; }
+  case 'answer': { const date = flag('date'), note = flag('note'); out(await http(`/api/documents/${id(a)}`, { method: 'PUT', body: { status: b ?? fail('answer <id> <accepted|declined|withdrawn>'), ...(date ? { statusDate: date } : {}), ...(note ? { statusNote: note } : {}), ...withRev() } })); break; }
+  case 'amend': out(await http(`/api/documents/${id(a)}/amend`, { method: 'POST' })); break;
+  case 'revisions': out(await http(`/api/documents/${id(a)}/revisions`)); break;
+  case 'revision': out(await http(`/api/documents/${id(a)}/revisions/${id(b)}`)); break;
+  case 'duplicate': { const r = flag('revision'); out(await http('/api/documents', { method: 'POST', body: { duplicateOf: id(a), ...(r ? { revision: Number(r) } : {}) } })); break; }
   case 'delete': if (!flag('yes', false)) fail('This permanently deletes the document and its history. Take a backup (npm run backup), then repeat with --yes.'); out(await http(`/api/documents/${id(a)}`, { method: 'DELETE' })); break;
   case 'html': case 'standalone': {
     const text = await http(cmd === 'html' ? `/api/documents/${id(a)}/html` : `/documents/${id(a)}/standalone.html`);
@@ -106,14 +114,16 @@ switch (cmd) {
   }
   case 'pdf': {
     const chrome = findChrome(); if (!chrome) fail('Google Chrome was not found (set CHROME_PATH).');
+    const revision = flag('revision');
     const doc = await http(`/api/documents/${id(a)}`);
-    const file = b ?? `Snape-Conservation_${doc.number}_${doc.lang === 'de' ? 'Angebot' : 'Offer'}.pdf`;
+    const rl = revision ? doc.revisions.find((r) => r.revNo === Number(revision))?.label ?? fail(`revision ${revision} was never sent`) : doc.revisionLabel;
+    const file = b ?? `Snape-Conservation_${doc.number}${rl !== 'A' ? `_Rev-${rl}` : ''}_${doc.lang === 'de' ? 'Angebot' : 'Offer'}.pdf`;
     const puppeteer = (await import('puppeteer-core')).default;
     const browser = await puppeteer.launch({ executablePath: chrome, headless: true, args: ['--no-sandbox', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
     try {
       const page = await browser.newPage(); await page.setViewport({ width: 900, height: 1200 });
       if (AUTH['CF-Access-Client-Id']) await page.setExtraHTTPHeaders(AUTH);
-      await page.goto(`${BASE}/documents/${doc.id}/print`, { waitUntil: 'load' });
+      await page.goto(`${BASE}/documents/${doc.id}${revision ? `/revisions/${revision}` : ''}/print`, { waitUntil: 'load' });
       await page.waitForFunction('window.__pagedDone === true || window.__error', { timeout: 120000 });
       const error = await page.evaluate('window.__error'); if (error) fail(`layout failed: ${error}`);
       await page.evaluate(() => document.fonts.ready);

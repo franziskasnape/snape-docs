@@ -175,13 +175,23 @@ async function save() {
   try {
     if (!doc.title && doc.artwork[0]?.v) doc.title = doc.artwork[0].v;
     if (clientDirty && doc.client?.id) { await api(`/api/clients/${doc.client.id}`, 'PUT', doc.client); clientDirty = false; }
-    doc.rev = (await api(`/api/documents/${id}`, 'PUT', { title: doc.title, status: doc.status, clientId: doc.clientId, artwork: doc.artwork, data: doc.data, baseRev: doc.rev })).rev;
-    setState('Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+    const r = await api(`/api/documents/${id}`, 'PUT', { title: doc.title, status: doc.status, clientId: doc.clientId, artwork: doc.artwork, data: doc.data, baseRev: doc.rev });
+    doc.rev = r.rev;
+    if (r.newRevisionStarted) {                              // the first change to a sent offer starts the next revision: the sent one stays as it was
+      doc.status = r.status; doc.revision = r.revision; doc.revisionLabel = r.revisionLabel;
+      if (r.meta) { doc.data.meta = r.meta; for (const [p, v] of [['data.meta.date', r.meta.date], ['data.meta.validUntil', r.meta.validUntil]]) { const el = $(`#form input[data-path="${p}"]`); if (el) el.value = v ?? ''; } const cb = $('#form input[data-path="data.meta.dateAuto"]'); if (cb) cb.checked = !!r.meta.dateAuto; }
+      await refreshRevisions();
+    }
+    setState(r.newRevisionStarted ? `Revision ${doc.revisionLabel} started. The version you sent stays as it was.` : 'Saved ' + new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
   } catch (e) {
     let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ }
-    if (j.code === 'conflict') { stale = true; setState('Changed elsewhere: reload this page. Edits made here since are NOT saved.'); }
+    if (j.code === 'locked') { setState(j.error); renderStatus(); }
+    else if (j.code === 'conflict') { stale = true; setState('Changed elsewhere: reload this page. Edits made here since are NOT saved.'); }
     else setState('Save failed: ' + (j.issues?.map((i) => `${i.path}: ${i.message}`).join('; ') || j.error || e.message));
   }
+  finishSave();
+}
+function finishSave() {
   saving = false;
   if (pendingSave) { pendingSave = false; save(); }
 }
@@ -354,7 +364,6 @@ $('#form').addEventListener('click', (e) => {
   dirty({ structural: true });
 });
 
-$('#status').addEventListener('change', (e) => { doc.status = e.target.value; dirty(); });
 
 $('#versionBtn').addEventListener('click', async () => {
   const note = prompt('Name this version (optional):', ''); if (note === null) return;
@@ -388,6 +397,125 @@ function insertBeforeTable(block) {
   const bl = doc.data.blocks, at = bl.findIndex((b) => b.type === 'measures' && b.kind === 'main');
   bl.splice(at < 0 ? bl.length : at, 0, block);
 }
+
+// ---- revisions: what was sent, and what status it is in ----
+const STATUS_LABEL = { draft: 'Draft', sent: 'Sent', accepted: 'Accepted', declined: 'Declined', withdrawn: 'Withdrawn' };
+const fmtDay = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date());
+const revOf = (no) => doc.revisions.find((r) => r.revNo === no);
+
+async function refreshRevisions() { doc.revisions = (await api(`/api/documents/${id}`)).revisions; renderStatus(); }
+
+function renderStatus() {
+  const L = doc.revisionLabel, st = doc.status, cur = revOf(doc.revision), prev = revOf(doc.revision - 1);
+  $('#hRev').textContent = `Rev. ${L}`;
+  $('#hStatus').textContent = STATUS_LABEL[st] ?? st; $('#hStatus').className = `pill ${st}`;
+  const b = (act, text, cls = 'mini') => `<button type="button" class="${cls}" data-sact="${act}">${text}</button>`;
+  $('#statusActions').innerHTML = st === 'draft' ? b('sent', 'Mark as sent', 'primary')
+    : st === 'sent' ? `<span class="muted">Client answered:</span>${b('accepted', 'Accepted')}${b('declined', 'Declined')}${b('withdrawn', 'Withdrawn')}`
+    : st === 'accepted' ? b('amend', 'Create amendment') : '';
+  $('#sentBtn').textContent = `Sent versions (${doc.revisions.length})`;
+  const banner = $('#revBanner'); let html = '', locked = false;
+  if (st === 'draft' && doc.revision > 1 && prev) html = `You are editing <b>Revision ${L}</b> (draft). <b>Revision ${prev.label}</b> was sent on ${fmtDay(prev.sentAt)} and stays unchanged. <button type="button" class="mini" data-sact="compare">Compare with ${prev.label}</button>`;
+  else if (st === 'sent' && cur) html = `<b>Revision ${L}</b> was sent on ${fmtDay(cur.sentAt)}. Changing the offer starts <b>Revision ${revLabelOf(doc.revision + 1)}</b>; the version you sent stays as it was.`;
+  else if (st === 'accepted' && cur) { html = `<b>Revision ${L}</b> was accepted${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''} and is locked. <button type="button" class="mini" data-sact="amend">Create amendment</button>`; locked = true; }
+  else if ((st === 'declined' || st === 'withdrawn') && cur) html = `<b>Revision ${L}</b> was ${st}${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''}. Changing the offer starts <b>Revision ${revLabelOf(doc.revision + 1)}</b>.`;
+  banner.hidden = !html; banner.innerHTML = html; banner.classList.toggle('locked', locked);
+  $('#form').toggleAttribute('inert', locked); $('#form').classList.toggle('locked', locked);
+}
+const revLabelOf = (n) => { let s = ''; for (let k = n; k > 0; k = Math.floor((k - 1) / 26)) s = String.fromCharCode(65 + ((k - 1) % 26)) + s; return s; };
+
+/** Ask for a date and a note, then run `go(date, note)`. */
+function askDateNote({ title, help, dateLabel = 'Date', date = todayIso(), note = '', ok = 'Save' }, go) {
+  $('#markTitle').textContent = title; $('#markHelp').textContent = help; $('#markDateLabel').textContent = dateLabel;
+  $('#markDate').value = date; $('#markNote').value = note; $('#markOk').textContent = ok; $('#markError').hidden = true;
+  $('#markDlg').showModal();
+  $('#markOk').onclick = async () => {
+    if (!$('#markDate').value) { $('#markError').textContent = 'Pick a date.'; $('#markError').hidden = false; return; }
+    $('#markOk').disabled = true;
+    try { await go($('#markDate').value, $('#markNote').value.trim()); $('#markDlg').close(); }
+    catch (e) { let j = {}; try { j = JSON.parse(e.message); } catch { /* not JSON */ } $('#markError').textContent = j.error ?? e.message; $('#markError').hidden = false; }
+    $('#markOk').disabled = false;
+  };
+}
+$('#markCancel').addEventListener('click', () => $('#markDlg').close());
+
+async function changeStatus(status, date, note) {
+  await save();
+  if (stale) throw new Error(JSON.stringify({ error: 'This page is out of date. Reload it first.' }));
+  const r = await api(`/api/documents/${id}`, 'PUT', { status, statusDate: date, statusNote: note || undefined, baseRev: doc.rev });
+  doc.rev = r.rev; doc.status = r.status; doc.revision = r.revision; doc.revisionLabel = r.revisionLabel;
+  await refreshRevisions();
+  setState(`Revision ${doc.revisionLabel}: ${STATUS_LABEL[doc.status].toLowerCase()}`);
+}
+
+$('#statusActions').addEventListener('click', (e) => statusAction(e.target.closest('[data-sact]')?.dataset.sact));
+$('#revBanner').addEventListener('click', (e) => statusAction(e.target.closest('[data-sact]')?.dataset.sact));
+function statusAction(act) {
+  if (!act) return;
+  const L = doc.revisionLabel;
+  if (act === 'sent') askDateNote({ title: `Mark Revision ${L} as sent`, help: `This saves a permanent copy exactly as it is now. Changing the offer afterwards starts Revision ${revLabelOf(doc.revision + 1)}.`, dateLabel: 'Sent on', ok: 'Save as sent' }, (d, n) => changeStatus('sent', d, n));
+  else if (['accepted', 'declined', 'withdrawn'].includes(act)) askDateNote({ title: `Revision ${L}: ${act}`, help: act === 'withdrawn' ? 'You pulled the offer back before the client answered.' : `Record the client's answer to this revision.`, dateLabel: act === 'withdrawn' ? 'Withdrawn on' : 'Answered on', ok: 'Save' }, (d, n) => changeStatus(act, d, n));
+  else if (act === 'amend') { if (confirm(`Start Revision ${revLabelOf(doc.revision + 1)}? Revision ${L} stays accepted and unchanged.`)) api(`/api/documents/${id}/amend`, 'POST').then(() => location.reload()); }
+  else if (act === 'compare') openSent(doc.revision - 1);
+}
+
+// ---- the "Sent versions" panel ----
+$('#sentBtn').addEventListener('click', () => openSent());
+$('#sentClose').addEventListener('click', () => $('#sentDlg').close());
+async function openSent(compareNo) {
+  $('#sentDlg').showModal();
+  doc.revisions = (await api(`/api/documents/${id}`)).revisions;
+  const rows = [];
+  if (doc.status === 'draft' || !revOf(doc.revision)) rows.push(`<div class="sent-row"><div class="badge">${doc.revisionLabel}</div><div><b>Revision ${doc.revisionLabel}</b> <span class="pill draft">Draft, not sent</span><div class="muted">${doc.revision > 1 ? `Replaces Revision ${revLabelOf(doc.revision - 1)}` : 'First revision'}</div></div><div class="acts"><button type="button" class="mini" data-s="close">Continue editing</button></div></div>`);
+  for (const r of [...doc.revisions].reverse()) {
+    const fig = r.summary ? `ca. ${r.summary.hoursMin}–${r.summary.hoursMax} Std. · CHF ${Math.round(r.summary.chfMin).toLocaleString('de-CH')}–${Math.round(r.summary.chfMax).toLocaleString('de-CH')}` : '';
+    const status = r.status === 'sent' ? `<span class="pill sent">Sent ${fmtDay(r.sentAt)}</span>` : r.status === 'superseded' ? `<span class="pill withdrawn">Sent ${fmtDay(r.sentAt)} · replaced</span>` : `<span class="pill sent">Sent ${fmtDay(r.sentAt)}</span> <span class="pill ${r.status}">${STATUS_LABEL[r.status]} ${fmtDay(r.decidedAt)}</span>`;
+    const latest = r.revNo === doc.revision;
+    rows.push(`<div class="sent-row" data-rev="${r.revNo}"><div class="badge">${r.label}</div>
+      <div><b>Revision ${r.label}</b> ${status}<div class="muted">${esc(fig)}${r.sentNote ? ` · ${esc(r.sentNote)}` : ''}${r.decidedNote ? ` · ${esc(r.decidedNote)}` : ''}</div></div>
+      <div class="acts"><a class="btn mini" target="_blank" href="/documents/${id}/revisions/${r.revNo}/print">View / print</a>
+        <button type="button" class="mini" data-s="compare">Compare with now</button><button type="button" class="mini" data-s="copy">Copy to new draft</button>
+        <button type="button" class="mini" data-s="edit">Edit dates</button>
+        ${['accepted', 'declined', 'withdrawn'].includes(r.status) ? '<button type="button" class="mini" data-s="undo">Undo answer</button>' : ''}
+        ${latest && r.status === 'sent' ? '<button type="button" class="mini danger" data-s="takeback">Take back</button>' : ''}</div>
+      <div class="diff-box" data-box="${r.revNo}"></div></div>`);
+  }
+  $('#sentBody').innerHTML = rows.join('') || '<p class="muted">Nothing sent yet. “Mark as sent” saves the first revision.</p>';
+  if (compareNo) $(`#sentBody [data-rev="${compareNo}"] [data-s="compare"]`)?.click();
+}
+$('#sentBody').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-s]'); if (!btn) return;
+  if (btn.dataset.s === 'close') return $('#sentDlg').close();
+  const row = btn.closest('[data-rev]'), no = Number(row.dataset.rev), r = revOf(no);
+  try {
+    if (btn.dataset.s === 'compare') {
+      const snap = (await api(`/api/documents/${id}/revisions/${no}`)).snapshot;
+      const items = DocDiff.diffDocs({ title: doc.title, artwork: doc.artwork, data: doc.data }, { title: snap.title, artwork: snap.artwork, data: snap.data });
+      row.querySelector('.diff-box').innerHTML = items.length
+        ? `<p class="hint">What would change if the current offer went back to Revision ${r.label}: <del>red</del> is what you have now, <ins>green</ins> was in Revision ${r.label}.</p><ul class="diff">${items.slice(0, 60).map((it) => `<li><span class="tag ${it.tag}">${TAG[it.tag]}</span><span class="where">${esc(it.where)}</span><div class="what">${it.html}</div></li>`).join('')}</ul>${items.length > 60 ? `<p class="muted">…and ${items.length - 60} more</p>` : ''}`
+        : '<p class="hint">Identical to the current offer.</p>';
+    } else if (btn.dataset.s === 'copy') {
+      const c = await api('/api/documents', 'POST', { duplicateOf: id, revision: no }); location.href = `/edit.html?id=${c.id}`;
+    } else if (btn.dataset.s === 'edit') {
+      const sent = prompt(`Revision ${r.label} was sent on (yyyy-mm-dd):`, r.sentAt); if (sent === null) return;
+      const note = prompt('Note:', r.sentNote ?? ''); if (note === null) return;
+      await api(`/api/documents/${id}/revisions/${no}`, 'PATCH', { sentAt: sent.trim(), note });
+      if (['accepted', 'declined', 'withdrawn'].includes(r.status)) {
+        const at = prompt(`${STATUS_LABEL[r.status]} on (yyyy-mm-dd):`, r.decidedAt ?? ''); if (at === null) return;
+        const dn = prompt('Note on the answer:', r.decidedNote ?? ''); if (dn === null) return;
+        await api(`/api/documents/${id}/revisions/${no}`, 'PATCH', { decidedAt: at.trim(), decidedNote: dn });
+      }
+      doc.rev = (await api(`/api/documents/${id}`)).rev; await refreshRevisions(); openSent();
+    } else if (btn.dataset.s === 'undo') {
+      if (!confirm(`Undo the answer on Revision ${r.label}? It becomes "sent" again.`)) return;
+      await api(`/api/documents/${id}/revisions/${no}/decision`, 'DELETE'); location.reload();
+    } else if (btn.dataset.s === 'takeback') {
+      if (!confirm(`Take back Revision ${r.label}? Use this only if you marked it as sent by mistake. The record is removed and the offer is a draft again.`)) return;
+      await api(`/api/documents/${id}/revisions/${no}`, 'DELETE'); location.reload();
+    }
+  } catch (err) { let j = {}; try { j = JSON.parse(err.message); } catch { /* not JSON */ } alert(j.error ?? err.message); }
+});
 
 // ---- proofread (Claude): suggestions only, you accept each one ----
 const proofDlg = $('#proofDlg');
@@ -569,9 +697,6 @@ async function saveRowToLibrary(row) {
 // ---- boot ----
 (async () => {
   [doc, clients, appSettings] = await Promise.all([api(`/api/documents/${id}`), api('/api/clients'), api('/api/settings')]);
-  const types = await api('/api/doctypes');
-  const st = types.find((t) => t.id === doc.type).statuses;
-  $('#status').innerHTML = st.map((s) => `<option ${s === doc.status ? 'selected' : ''}>${s}</option>`).join('');
   document.title = `${doc.number} — Snape Docs`;
-  renderForm(); preview();
+  renderForm(); renderStatus(); preview();
 })();

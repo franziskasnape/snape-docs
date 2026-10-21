@@ -5,6 +5,8 @@ import { todayInStudioZone } from './core/format';
 import { checkData, ensureIds } from './core/validate';
 import { upgrade } from './core/migrate';
 import { openapi } from './core/openapi';
+import { getRevisionRow } from './core/revisions';
+import { revisionHtml } from './core/revisionRender';
 import { DEFAULT_BRIDGE_URL, resolveProvider } from './core/proofread';
 import { hostPage } from './core/render/host';
 
@@ -85,6 +87,14 @@ app.get('/documents/:id/print', async (c) => {
   const ctx = await buildContext(c.env, doc, (id) => `${origin}/img/${id}`);       // absolute: the document is loaded from a blob: URL
   const documentHtml = dt.render(parseData(doc), ctx, { cssHref: `${origin}/house.css`, sealSrc: `${origin}/seal.png` });
   return c.html(hostPage({ documentHtml, mode: 'view', lang: doc.lang }));
+});
+
+// A sent revision exactly as it was sent: print view (A4 pages; Save as PDF)
+app.get('/documents/:id/revisions/:n/print', async (c) => {
+  const doc = await getDocument(c.env, Number(c.req.param('id')));
+  const row = doc && await getRevisionRow(c.env, doc.id, Number(c.req.param('n')));
+  if (!doc || !row) return c.notFound();
+  return c.html(hostPage({ documentHtml: await revisionHtml(c.env, doc, row, new URL(c.req.url).origin), mode: 'view', lang: doc.lang }));
 });
 
 // Self-contained single-file export (fonts, images, seal and the layout engine inlined) — like the original hand-built offers.

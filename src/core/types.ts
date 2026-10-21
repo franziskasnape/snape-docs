@@ -19,6 +19,8 @@ export interface RenderContext {
   imageDims?: Record<number, { w: number; h: number }>;
   /** The studio owner's signature for the contractor line: image URL (empty if none uploaded) and the default place of signing */
   signature?: { src: string; place: string; baseline: number };
+  /** Which revision this is (see core/revisions.ts); revision 1 prints no revision mark */
+  revision?: { no: number; label: string; replaces?: { label: string; date: string } };
   /** Editor preview only: mark text with the editor field it comes from (data-src), so a double click can jump to it */
   sourceMap?: boolean;
 }
@@ -51,6 +53,10 @@ export interface DocType<D = unknown> {
   render(data: D, ctx: RenderContext, opts?: { cssHref?: string; inlineCss?: string; sealSrc?: string }): string;
   /** Generated default text of the computed cost paragraph, if the type has one (editor 'edit manually') */
   costText?(data: D, lang: Lang): string;
+  /** Headline figures of a document for lists (e.g. hours and CHF of an offer), or null */
+  summary?(data: D): { hoursMin: number; hoursMax: number; chfMin: number; chfMax: number; rate: number } | null;
+  /** Data of a document when its next revision starts (e.g. the offer date follows today again) */
+  newRevision?(data: D, today: string): D;
   /** The wording of a document that can be proofread (never private notes, numbers or client data) */
   textFields?(data: D): TextField[];
 }

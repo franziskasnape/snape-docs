@@ -231,4 +231,83 @@ d('editor in the browser', () => {
     expect(sizes).toEqual([70, 60]);                                       // a-first.png (70 wide) came before b-second.png (60 wide)
     await page.close();
   });
+
+  it('revisions: mark as sent, edit starts Revision B, the Sent versions panel compares, accepted locks and amends', async () => {
+    const id = await make({ title: 'revisions ui (invented)', lang: 'de', artwork: [{ k: 'Titel', v: 'Erfunden' }], data: { blocks: [
+      { type: 'prose', headingKey: 'condition', paragraphs: ['Text der ersten Revision.'] },
+      { type: 'measures', kind: 'main', rows: [{ title: 'Reinigung', desc: 'x', hoursMin: 2, hoursMax: 3 }] }] } });
+    const page = await open(id);
+    page.on('dialog', (dlg) => dlg.accept());
+    const text = (sel) => page.$eval(sel, (e) => e.textContent.trim());
+
+    // draft: the one action is "Mark as sent"; the dialog asks for a date and a note
+    expect(await text('#hStatus')).toBe('Draft'); expect(await text('#hRev')).toBe('Rev. A');
+    expect(await page.$eval('#revBanner', (e) => e.hidden)).toBe(true);
+    await page.click('[data-sact="sent"]');
+    await page.waitForSelector('#markDlg[open]');
+    await page.$eval('#markDate', (e) => { e.value = '2026-10-08'; });
+    await page.type('#markNote', 'per E-Mail');
+    await page.click('#markOk');
+    await waitFor(async () => (await text('#hStatus')) === 'Sent', 15000, 'the status to become Sent');
+    expect(await text('#revBanner')).toMatch(/Revision A was sent on 08\.10\.2026/);
+    expect(await text('#sentBtn')).toBe('Sent versions (1)');
+    expect((await doc(id)).revisions[0]).toMatchObject({ sentAt: '2026-10-08', sentNote: 'per E-Mail', status: 'sent' });
+
+    // the first change starts Revision B; the date follows today again; Revision A stays as sent
+    await page.$eval('textarea[data-path="data.blocks.0.paragraphs.0"]', (e) => { e.focus(); e.select(); });
+    await page.keyboard.type('Text der zweiten Revision.');
+    await waitFor(async () => (await text('#hRev')) === 'Rev. B', 15000, 'Revision B to start');
+    expect(await text('#hStatus')).toBe('Draft');
+    expect(await text('#revBanner')).toMatch(/You are editing Revision B.*Revision A was sent on 08\.10\.2026/);
+    expect(await text('#saveState')).toMatch(/Revision B started/);
+    const dateNow = await page.$eval('input[data-path="data.meta.date"]', (e) => e.value);
+    expect(dateNow).toBe(new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Zurich' }).format(new Date()));
+    await waitFor(async () => (await doc(id)).data.blocks[0].paragraphs[0] === 'Text der zweiten Revision.', 15000, 'the text to be saved');
+    expect((await api(`/api/documents/${id}/revisions/1`)).json.snapshot.data.blocks[0].paragraphs[0]).toBe('Text der ersten Revision.');
+
+    // the Sent versions panel: Revision A with its date, a working Revision B, and a comparison with what is there now
+    await page.click('#sentBtn');
+    await page.waitForSelector('#sentBody .sent-row[data-rev="1"]');
+    expect(await text('#sentBody')).toMatch(/Revision B.*Draft, not sent/s);
+    expect(await text('#sentBody [data-rev="1"]')).toMatch(/Revision A.*Sent 08\.10\.2026.*per E-Mail/s);
+    expect(await page.$eval('#sentBody [data-rev="1"] a.btn', (e) => e.getAttribute('href'))).toBe(`/documents/${id}/revisions/1/print`);
+    await page.click('#sentBody [data-rev="1"] [data-s="compare"]');
+    await page.waitForSelector('#sentBody [data-rev="1"] .diff-box .diff');
+    expect(await page.$eval('#sentBody [data-rev="1"] .diff-box', (e) => e.innerHTML)).toContain('erste');
+    await page.click('#sentClose');
+
+    // send B, then record the answer: accepted locks the form until "Create amendment"
+    await page.click('[data-sact="sent"]'); await page.waitForSelector('#markDlg[open]'); await page.click('#markOk');
+    await waitFor(async () => (await text('#hStatus')) === 'Sent', 15000, 'Revision B to be sent');
+    expect((await doc(id)).revisions.map((r) => [r.label, r.status])).toEqual([['A', 'superseded'], ['B', 'sent']]);
+    await page.click('[data-sact="accepted"]'); await page.waitForSelector('#markDlg[open]'); await page.click('#markOk');
+    await waitFor(async () => (await text('#hStatus')) === 'Accepted', 15000, 'the status to become Accepted');
+    expect(await page.$eval('#form', (e) => e.inert)).toBe(true);
+    expect(await text('#revBanner')).toMatch(/Revision B was accepted.*locked/s);
+    await page.click('#revBanner [data-sact="amend"]');
+    await page.waitForFunction(() => /Rev\. C/.test(document.querySelector('#hRev')?.textContent ?? ''), { timeout: 20000 });
+    expect(await text('#hStatus')).toBe('Draft');
+    expect(await page.$eval('#form', (e) => e.inert)).toBe(false);
+    expect((await doc(id)).revisions.map((r) => [r.label, r.status])).toEqual([['A', 'superseded'], ['B', 'accepted']]);
+    await page.close();
+  });
+
+  it('the landing page shows the revision of each offer, and the client page lists every revision that was sent', async () => {
+    const cl = await api('/api/clients', 'POST', { name: 'Revisions Test AG (invented)' });
+    const id = await make({ title: 'landing (invented)', lang: 'de', clientId: cl.json.id });
+    await api(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-08' });
+    await api(`/api/documents/${id}`, 'PATCH', [{ op: 'replace', path: '/title', value: 'landing (invented)' }, { op: 'replace', path: '/data/rate', value: 120 }]);
+    const page = await browser.newPage();
+    await page.goto(`${BASE}/`, { waitUntil: 'load' });
+    await page.waitForSelector(`tr[data-id="${id}"]`);
+    const row = await page.$eval(`tr[data-id="${id}"]`, (e) => e.innerText.replace(/\s+/g, ' '));
+    expect(row).toMatch(/draft/i); expect(row).toMatch(/Rev\. B/); expect(row).toMatch(/A sent 08\.10\./);
+    await page.goto(`${BASE}/client.html?id=${cl.json.id}`, { waitUntil: 'load' });
+    await page.waitForSelector('#list tbody tr');
+    const txt = await page.$eval('#list', (e) => e.innerText.replace(/\s+/g, ' '));
+    expect(txt).toMatch(/Rev\. A.*sent 08\.10\.2026/i); expect(txt).toMatch(/Rev\. B.*draft/i);
+    expect(await page.$eval('#list a[href*="/revisions/1/print"]', (e) => e.getAttribute('href'))).toBe(`/documents/${id}/revisions/1/print`);
+    await page.close();
+    await api(`/api/documents/${id}`, 'DELETE'); await api(`/api/clients/${cl.json.id}`, 'DELETE');
+  });
 });

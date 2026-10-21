@@ -133,4 +133,12 @@ d('special cases', () => {
     const withRows = pages.filter((p) => p.rowTitles.length);
     expect(withRows.reduce((a, p) => a + p.rowTitles.length, 0)).toBe(43);
   });
+
+  it('a later revision (Rev. B with "replaces" line) lays out without defects, with the same page count as revision A', async () => {
+    const data = makeOffer({ seed: 8, rows: 9 });
+    const a = await h.render(data);
+    const b = await h.render(data, 'de', { ctx: { revision: { no: 2, label: 'B', replaces: { label: 'A', date: '2026-10-08' } } } });
+    expect(findDefects(b)).toEqual([]);
+    expect(b).toHaveLength(a.length);
+  });
 });

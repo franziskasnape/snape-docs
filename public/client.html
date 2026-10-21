@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Client — Snape Docs</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand"><span class="brand-word">SNAPE</span><span class="brand-sub">Art Conservation</span></div>
+  <nav><a href="/" class="active">Documents</a><a href="/snippets.html">Snippets</a><a href="/settings.html">Settings</a></nav>
+</header>
+<main class="wrap">
+  <div class="toolbar"><h1 id="name">Client</h1><a href="/">← All documents</a></div>
+  <p id="contact" class="muted"></p>
+  <p class="muted">Everything offered to this client, with every revision that was sent.</p>
+  <table id="list" class="list"><thead><tr><th>Offer</th><th>Title</th><th>Revisions</th><th></th></tr></thead><tbody></tbody></table>
+  <p id="empty" class="muted" hidden>No documents for this client yet.</p>
+</main>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const day = (iso) => (iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' + iso.slice(0, 4) : '');
+const id = Number(new URLSearchParams(location.search).get('id'));
+(async () => {
+  const [client, docs] = await Promise.all([fetch(`/api/clients/${id}`).then((r) => r.json()), fetch('/api/documents').then((r) => r.json())]);
+  $('#name').textContent = client.name ?? 'Client';
+  $('#contact').textContent = [client.contact, client.address, client.email, client.phone].filter(Boolean).join(' · ');
+  document.title = `${client.name ?? 'Client'} — Snape Docs`;
+  const mine = docs.filter((d) => d.client_id === id).sort((a, b) => a.number.localeCompare(b.number));
+  $('#list tbody').innerHTML = mine.map((d) => {
+    const lines = (d.revisions ?? []).map((r) => `<div><b>Rev. ${r.label}</b> <span class="pill ${r.status === 'superseded' ? 'withdrawn' : r.status}">${r.status === 'superseded' ? 'replaced' : r.status}</span> <span class="muted">sent ${day(r.sentAt)}${r.decidedAt ? ` · ${r.status} ${day(r.decidedAt)}` : ''}</span> <a href="/documents/${d.id}/revisions/${r.revNo}/print" target="_blank">view</a></div>`);
+    if (d.status === 'draft') lines.push(`<div><b>Rev. ${d.revisionLabel}</b> <span class="pill draft">draft</span> <span class="muted">not sent</span></div>`);
+    return `<tr><td><a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td><td>${esc(d.title || '—')}</td><td>${lines.join('')}</td><td class="row-actions"><a href="/edit.html?id=${d.id}">Open</a></td></tr>`;
+  }).join('');
+  $('#empty').hidden = mine.length > 0;
+})();
+</script>
+</body>
+</html>

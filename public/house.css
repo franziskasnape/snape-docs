@@ -67,6 +67,7 @@ body {
 .doc-title { font-family:"Amulya", serif; font-weight:600; font-size:15.5pt; letter-spacing:0.5pt; }
 .doc-title-row { text-align:center; margin-top:2mm; }
 
+.doc-replaces { font-size:8.3pt; color:#6f5f49; margin-top:1.2mm; letter-spacing:0.3pt; }
 .hr { height:0.6pt; background:#1a1613; margin:3mm 0; }
 
 /* ---- two column info block ---- */

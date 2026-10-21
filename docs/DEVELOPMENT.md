@@ -161,6 +161,13 @@ See [API.md](API.md). The pieces: `src/doctypes/offer/zod.ts` (the schema every 
 The offer data types are derived from `zod.ts` (the one place to add a field); a new endpoint needs an entry in `openapi.ts` and a test in `tests/api/`.
 Every saving endpoint bumps `documents.rev`; the editor sends `baseRev` and shows "Changed elsewhere" on a 409.
 
+## Revisions and status
+
+`documents.revision` is the revision being worked on, `documents.status` the status of that revision; every sent revision is a row in `revisions` (migration 0004) holding a frozen snapshot (number, language, client, Objekt lines, data without private notes), the sent date and note, the answer and its date.
+Rules are in `core/status.ts` (pure, tested) and `core/revisions.ts` (database): `markSent`, `decide`, `undoDecision`, `unsend`, `startNextRevision`, `applyStatus`. `saveDoc` (routes/documents.ts) decides per save: no content change = nothing; content change on a draft = in place; on sent / declined / withdrawn = `startNextRevision` first (the type's `newRevision` hook resets the date); on accepted = 409 `locked`. Private notes never count as a content change.
+A frozen revision renders from its own snapshot (`core/revisionRender.ts`), never from the working copy; a revision above 1 prints a mark through `ctx.revision`. Document types provide `summary(data)` (offer: hours and CHF) for the revision lists.
+Editor: `renderStatus`, the dialogs and the Sent versions panel in `public/edit.js`; landing page and `client.html` list revisions. Tests: `tests/unit/status.test.js`, `tests/api/revisions.test.js`, the revisions cases in `tests/editor/editor.test.js`.
+
 ## Double-click in the preview → the editor field
 
 The editor preview is rendered with `ctx.sourceMap = true`: every piece of editable text carries `data-src="<editor field path>"` (`src()` in `core/render/source.ts`; also `data-src-html` when the field holds HTML and `data-src-line` for bullet points). Printed output, PDF and the standalone file carry no markers (a test guards this). On a double click `onPreviewDblClick` (`public/edit.js`) reads the selected word and which occurrence of it it is, and `DocLocate.locate` (`public/locate.js`) finds that same occurrence in the field's source text, skipping HTML tags and entities. A path with no field of its own (a standard heading, the calculated cost text) scrolls to the block (`data-bp`) instead.

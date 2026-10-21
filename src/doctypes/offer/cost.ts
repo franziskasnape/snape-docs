@@ -66,3 +66,19 @@ export function costParagraph(d: OfferData, lang: Lang): string {
   out += T.closing;
   return out;
 }
+
+/** Hours and CHF of the proposed work (optional tables excluded). With alternative options: the range from the cheapest to the dearest option. */
+export function offerTotals(d: OfferData): { hoursMin: number; hoursMax: number; chfMin: number; chfMax: number; rate: number } {
+  const tables = [
+    ...d.blocks.filter((b): b is MeasuresBlock => b.type === 'measures' && b.kind === 'main'),
+    ...objectLists(d).map((l): MeasuresBlock => ({ type: 'measures', kind: 'main', rows: l.rows.map((r) => ({ ...r, desc: '' })) })),
+  ];
+  const options = tables.filter((t) => t.option && !t.common);
+  const common = sumHours(tables.filter((t) => !t.option || t.common).flatMap((t) => t.rows));
+  let lo = common.min, hi = common.max;
+  if (options.length >= 2) {
+    const sums = options.map((t) => sumHours(t.rows));
+    lo += Math.min(...sums.map((x) => x.min)); hi += Math.max(...sums.map((x) => x.max));
+  } else { const s = sumHours(options.flatMap((t) => t.rows)); lo += s.min; hi += s.max; }
+  return { hoursMin: lo, hoursMax: hi, chfMin: lo * d.rate, chfMax: hi * d.rate, rate: d.rate };
+}
