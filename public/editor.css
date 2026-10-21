@@ -128,5 +128,18 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 .sent-row .acts { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }
 .sent-row .diff-box { grid-column:2 / 4; }
 
-.topbar .head-actions { flex-wrap:wrap; justify-content:flex-end; }
-.topbar .head-actions button, .topbar .head-actions .btn { white-space:nowrap; }
+
+/* editor header: two tidy rows (what it is and its status / the tools) */
+.editor-head { display:block; padding:8px 20px 10px; }
+.editor-head .head-row { display:flex; align-items:center; gap:10px; }
+.editor-head .head-row + .head-row { margin-top:8px; }
+.editor-head .tools { flex-wrap:wrap; }
+.editor-head .spacer { flex:1; }
+.editor-head .back { white-space:nowrap; margin-right:6px; }
+.editor-head .head-info { white-space:nowrap; }
+.editor-head #hNumber { font-size:16px; }
+.editor-head .pill { white-space:nowrap; }
+.editor-head .status-actions { margin-left:12px; flex-wrap:wrap; }
+.editor-head #saveState { margin-left:auto; white-space:nowrap; font-size:13px; }
+.editor-head button, .editor-head .btn { white-space:nowrap; }
+@media (max-width: 900px) { .editor-head .head-row:first-child { flex-wrap:wrap; } .editor-head #saveState { margin-left:0; } }

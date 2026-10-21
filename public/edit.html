@@ -8,16 +8,19 @@
 <link rel="stylesheet" href="/editor.css">
 </head>
 <body class="editor">
-<header class="topbar">
-  <div class="brand"><a href="/" class="back">← Documents</a></div>
-  <div class="head-info"><b id="hNumber"></b><span id="hRev" class="pill rev"></span><span id="hLang" class="pill"></span><span id="hStatus" class="pill"></span></div>
-  <div class="head-actions">
-    <span id="saveState" class="muted">Loaded</span>
+<header class="topbar editor-head">
+  <div class="head-row">
+    <a href="/" class="back">← Documents</a>
+    <div class="head-info"><b id="hNumber"></b><span id="hRev" class="pill rev"></span><span id="hLang" class="pill"></span><span id="hStatus" class="pill"></span></div>
     <span id="statusActions" class="status-actions"></span>
+    <span id="saveState" class="muted">Loaded</span>
+  </div>
+  <div class="head-row tools">
     <button id="sentBtn" title="Everything you sent, exactly as it was sent">Sent versions</button>
-    <button id="proofBtn" title="Check spelling and grammar with Claude">Proofread</button>
     <button id="historyBtn" title="Browse and restore earlier versions">History</button>
     <button id="versionBtn" title="Save a named snapshot">Save version</button>
+    <span class="spacer"></span>
+    <button id="proofBtn" title="Check spelling and grammar with Claude">Proofread</button>
     <a id="htmlLink" class="btn" title="Single self-contained file">Download HTML</a>
     <a id="printLink" target="_blank" class="btn primary">Print / PDF</a>
   </div>
