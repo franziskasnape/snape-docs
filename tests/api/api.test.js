@@ -157,4 +157,12 @@ d('API', () => {
     expect((await call(`/api/clients/${c.json.id}`, 'DELETE')).status).toBe(200);
     expect((await call(`/api/clients/${c.json.id}`)).status).toBe(404);
   });
+
+  it('a client whose offers were deleted can be deleted too (no orphaned Objekt lines in the way)', async () => {
+    const c = await call('/api/clients', 'POST', { name: 'Delete Test AG (invented)' });
+    const d = await call('/api/documents', 'POST', { title: 'delete order (invented)', clientId: c.json.id });
+    expect((await call(`/api/documents/${d.json.id}`, 'DELETE')).status).toBe(200);
+    expect((await call(`/api/clients/${c.json.id}`, 'DELETE')).status).toBe(200);
+    expect((await call(`/api/clients/${c.json.id}`)).status).toBe(404);
+  });
 });

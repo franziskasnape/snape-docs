@@ -189,11 +189,14 @@ documents.post('/:id/amend', amend);
 documents.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'));
   if (!(await getDocument(c.env, id))) return c.json({ error: 'not found', code: 'not_found' }, 404);
-  // images may be shared with duplicates: detach instead of cascading
+  const doc = (await getDocument(c.env, id))!;
+  // images may be shared with duplicates: detach instead of cascading. The document's Objekt lines go with it.
   await c.env.DB.batch([
     c.env.DB.prepare('UPDATE images SET document_id = NULL WHERE document_id = ?').bind(id),
+    ...(doc.artwork_id ? [c.env.DB.prepare('UPDATE images SET artwork_id = NULL WHERE artwork_id = ?').bind(doc.artwork_id)] : []),
     c.env.DB.prepare('DELETE FROM revisions WHERE document_id = ?').bind(id),
     c.env.DB.prepare('DELETE FROM documents WHERE id = ?').bind(id),
+    ...(doc.artwork_id ? [c.env.DB.prepare('DELETE FROM artworks WHERE id = ?').bind(doc.artwork_id)] : []),
   ]);
   return c.json({ ok: true });
 });

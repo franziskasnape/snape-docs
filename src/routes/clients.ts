@@ -31,6 +31,10 @@ clients.delete('/:id', async (c) => {
   const id = Number(c.req.param('id'));
   const used = await c.env.DB.prepare('SELECT count(*) AS n FROM documents WHERE client_id = ?').bind(id).first<{ n: number }>();
   if (used && used.n > 0) return c.json({ error: `${used.n} document(s) still use this client`, code: 'in_use' }, 409);
-  await c.env.DB.prepare('DELETE FROM clients WHERE id = ?').bind(id).run();
+  await c.env.DB.batch([
+    c.env.DB.prepare('UPDATE images SET artwork_id = NULL WHERE artwork_id IN (SELECT id FROM artworks WHERE client_id = ?)').bind(id),
+    c.env.DB.prepare('DELETE FROM artworks WHERE client_id = ? AND id NOT IN (SELECT artwork_id FROM documents WHERE artwork_id IS NOT NULL)').bind(id),   // left over from deleted documents
+    c.env.DB.prepare('DELETE FROM clients WHERE id = ?').bind(id),
+  ]);
   return c.json({ ok: true });
 });
