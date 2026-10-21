@@ -54,3 +54,13 @@ dialog details { margin-bottom:12px; }
 dialog details input { display:block; width:100%; margin-top:6px; }
 dialog .actions { display:flex; justify-content:flex-end; gap:8px; margin-top:8px; }
 table.list td:first-child, table.list td:nth-child(6) { white-space:nowrap; }
+
+/* landing page: click a row to see its versions */
+table.list tr.doc-row { cursor:pointer; }
+table.list tr.doc-row.open td { background:#faf8f4; border-bottom-color:transparent; }
+table.list .chev { color:var(--muted); display:inline-block; width:12px; }
+table.list tr.exp td { background:#faf8f4; padding:4px 12px 14px 36px; }
+.vrow { display:grid; grid-template-columns:64px 96px minmax(0,1fr) auto; gap:10px; align-items:center; padding:6px 0; border-top:1px solid var(--line); font-size:13px; }
+.vrow:first-child { border-top:0; }
+.vrow .vlabel { white-space:nowrap; }
+.vrow .vlinks a { margin-left:12px; white-space:nowrap; }

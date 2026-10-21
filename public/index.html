@@ -57,8 +57,8 @@ async function load() {
 function render() {
   const q = $('#search').value.toLowerCase(), st = $('#statusFilter').value;
   const rows = docs.filter((d) => (!st || d.status === st) && [d.number, d.client, d.title].join(' ').toLowerCase().includes(q));
-  $('#list tbody').innerHTML = rows.map((d) => `<tr data-id="${d.id}">
-    <td><a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td>
+  $('#list tbody').innerHTML = rows.map((d) => `<tr data-id="${d.id}" class="doc-row${open.has(d.id) ? ' open' : ''}" title="Click to show the versions">
+    <td><span class="chev" aria-hidden="true">${open.has(d.id) ? '▾' : '▸'}</span> <a href="/edit.html?id=${d.id}"><b>${esc(d.number)}</b></a></td>
     <td>${esc(d.title || '—')}</td><td>${d.client_id ? `<a href="/client.html?id=${d.client_id}">${esc(d.client)}</a>` : '—'}</td><td>${d.lang.toUpperCase()}</td>
     <td><b>${esc(d.revisionLabel)}</b>${revLine(d)}</td>
     <td><span class="pill ${d.status}">${d.status}</span></td><td class="muted" style="white-space:nowrap">${esc(d.updated_at.slice(0, 10))}</td>
@@ -66,9 +66,42 @@ function render() {
       <a href="/edit.html?id=${d.id}">Edit</a>
       <a href="/documents/${d.id}/print" target="_blank">PDF</a>
       <button data-act="dup" class="link">Duplicate</button>
-      <button data-act="del" class="link danger">Delete</button></td></tr>`).join('');
+      <button data-act="del" class="link danger">Delete</button></td></tr>${open.has(d.id) ? `<tr class="exp" data-exp="${d.id}"><td colspan="8">${expansion(d)}</td></tr>` : ''}`).join('');
   $('#empty').hidden = rows.length > 0;
+  for (const id of open) if (!details.has(id)) loadDetails(id);
 }
+
+// ---- click a row: show its versions (what was sent, when), each one a link to view / print it ----
+const open = new Set(), details = new Map();                         // expanded rows; revision details fetched on demand
+async function loadDetails(id) {
+  details.set(id, null);
+  try { details.set(id, (await api(`/api/documents/${id}/revisions`)).revisions); } catch { details.set(id, []); }
+  render();
+}
+const fday = (iso) => (iso ? iso.split('-').reverse().join('.') : '');
+const chf = (n) => Math.round(n).toLocaleString('de-CH');
+function expansion(d) {
+  const revs = details.get(d.id);
+  if (revs === undefined || revs === null) return '<span class="muted">Loading…</span>';
+  const line = (label, status, text, links) => `<div class="vrow"><b class="vlabel">Rev. ${esc(label)}</b><span class="pill ${status}">${status === 'superseded' ? 'replaced' : status}</span><span class="vtext">${text}</span><span class="vlinks">${links}</span></div>`;
+  const out = [];
+  if (d.status === 'draft') out.push(line(d.revisionLabel, 'draft', `<span class="muted">${d.revision > 1 ? 'working copy, not sent yet' : 'not sent yet'}</span>`, `<a href="/edit.html?id=${d.id}">Open in editor</a> <a href="/documents/${d.id}/print" target="_blank">Preview / PDF</a>`));
+  for (const r of [...revs].reverse()) {
+    const fig = r.summary ? `ca. ${r.summary.hoursMin}–${r.summary.hoursMax} Std. · CHF ${chf(r.summary.chfMin)}–${chf(r.summary.chfMax)}` : '';
+    const when = [`sent ${fday(r.sentAt)}`, r.decidedAt ? `${r.status} ${fday(r.decidedAt)}` : ''].filter(Boolean).join(' · ');
+    const notes = [r.sentNote, r.decidedNote].filter(Boolean).map(esc).join(' · ');
+    out.push(line(r.label, r.status, `${when}${fig ? ` <span class="muted">· ${fig}</span>` : ''}${notes ? ` <span class="muted">· ${notes}</span>` : ''}`,
+      `<a href="/documents/${d.id}/revisions/${r.revNo}/print" target="_blank">View / PDF</a>${r.revNo === d.revision && d.status !== 'draft' ? ` <a href="/edit.html?id=${d.id}">Open in editor</a>` : ''}`));
+  }
+  return out.join('') || `<span class="muted">Nothing sent yet.</span> <a href="/edit.html?id=${d.id}">Open in editor</a>`;
+}
+$('#list').addEventListener('click', (e) => {
+  if (e.target.closest('a, button, select, input')) return;                 // links and buttons keep their own job
+  const tr = e.target.closest('tr.doc-row'); if (!tr) return;
+  const id = Number(tr.dataset.id);
+  if (open.has(id)) open.delete(id); else { open.add(id); }
+  render();
+});
 const day = (iso) => (iso ? iso.slice(8, 10) + '.' + iso.slice(5, 7) + '.' : '');
 /** "A sent 08.10. · B draft": what was sent when, at a glance */
 function revLine(d) {

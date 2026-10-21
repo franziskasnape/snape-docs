@@ -317,6 +317,14 @@ d('editor in the browser', () => {
     await page.waitForSelector(`tr[data-id="${id}"]`);
     const row = await page.$eval(`tr[data-id="${id}"]`, (e) => e.innerText.replace(/\s+/g, ' '));
     expect(row).toMatch(/draft/i); expect(await page.$eval(`tr[data-id="${id}"] td:nth-child(5) b`, (e) => e.textContent)).toBe('B'); expect(row).toMatch(/A sent 08\.10\./);   // own "Rev." column
+    // clicking the row expands its versions, each with a link to view / print it; links inside the row keep their own job
+    await page.click(`tr[data-id="${id}"] td:nth-child(2)`);
+    await page.waitForSelector(`tr[data-exp="${id}"] .vrow`);
+    const exp = await page.$eval(`tr[data-exp="${id}"]`, (e) => e.innerText.replace(/\s+/g, ' '));
+    expect(exp).toMatch(/Rev\. B.*working copy/i); expect(exp).toMatch(/Rev\. A.*sent 08\.10\.2026/i);
+    expect(await page.$eval(`tr[data-exp="${id}"] a[href*="/revisions/1/print"]`, (e) => e.getAttribute('href'))).toBe(`/documents/${id}/revisions/1/print`);
+    await page.click(`tr[data-id="${id}"] td:nth-child(2)`);
+    await page.waitForFunction((i) => !document.querySelector(`tr[data-exp="${i}"]`), {}, id);
     await page.goto(`${BASE}/client.html?id=${cl.json.id}`, { waitUntil: 'load' });
     await page.waitForSelector('#list tbody tr');
     const txt = await page.$eval('#list', (e) => e.innerText.replace(/\s+/g, ' '));
