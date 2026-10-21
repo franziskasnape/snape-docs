@@ -294,7 +294,9 @@ d('editor in the browser', () => {
 
   it('the landing page shows the revision of each offer, and the client page lists every revision that was sent', async () => {
     const cl = await api('/api/clients', 'POST', { name: 'Revisions Test AG (invented)' });
-    const id = await make({ title: 'landing (invented)', lang: 'de', clientId: cl.json.id });
+    let id;
+    try {
+    id = await make({ title: 'landing (invented)', lang: 'de', clientId: cl.json.id });
     await api(`/api/documents/${id}`, 'PUT', { status: 'sent', statusDate: '2026-10-08' });
     await api(`/api/documents/${id}`, 'PATCH', [{ op: 'replace', path: '/title', value: 'landing (invented)' }, { op: 'replace', path: '/data/rate', value: 120 }]);
     const page = await browser.newPage();
@@ -308,6 +310,6 @@ d('editor in the browser', () => {
     expect(txt).toMatch(/Rev\. A.*sent 08\.10\.2026/i); expect(txt).toMatch(/Rev\. B.*draft/i);
     expect(await page.$eval('#list a[href*="/revisions/1/print"]', (e) => e.getAttribute('href'))).toBe(`/documents/${id}/revisions/1/print`);
     await page.close();
-    await api(`/api/documents/${id}`, 'DELETE'); await api(`/api/clients/${cl.json.id}`, 'DELETE');
+    } finally { if (id) await api(`/api/documents/${id}`, 'DELETE'); await api(`/api/clients/${cl.json.id}`, 'DELETE'); }
   });
 });
