@@ -282,12 +282,20 @@ d('editor in the browser', () => {
     expect((await doc(id)).revisions.map((r) => [r.label, r.status])).toEqual([['A', 'superseded'], ['B', 'sent']]);
     await page.click('[data-sact="accepted"]'); await page.waitForSelector('#markDlg[open]'); await page.click('#markOk');
     await waitFor(async () => (await text('#hStatus')) === 'Accepted', 15000, 'the status to become Accepted');
-    expect(await page.$eval('#form', (e) => e.inert)).toBe(true);
+    // locked means "cannot be changed", not "cannot be read": the form still scrolls, the fields are disabled, private notes stay editable
+    expect(await page.$$eval('#form > fieldset:not(.notes)', (f) => f.every((x) => x.disabled))).toBe(true);
+    expect(await page.$eval('#form > fieldset.notes', (f) => f.disabled)).toBe(false);
+    const scrolled = await page.$eval('#form', (f) => { f.scrollTop = 0; f.scrollTop = 300; return { max: f.scrollHeight - f.clientHeight, top: f.scrollTop }; });
+    expect(scrolled.max).toBeGreaterThan(0); expect(scrolled.top).toBeGreaterThan(0);
+    expect(await page.$eval('textarea[data-path="data.blocks.0.paragraphs.0"]', (e) => e.matches(':disabled'))).toBe(true);          // disabled by its fieldset
+    await page.click('#notes'); await page.keyboard.type('Notiz');
+    await waitFor(async () => /Notiz/.test((await doc(id)).data.privateNotes ?? ''), 15000, 'a private note on an accepted offer to be saved');
+    expect((await doc(id)).status).toBe('accepted');                       // a private note is not a change of the offer
     expect(await text('#revBanner')).toMatch(/Revision B was accepted.*locked/s);
     await page.click('#revBanner [data-sact="amend"]');
     await page.waitForFunction(() => /Rev\. C/.test(document.querySelector('#hRev')?.textContent ?? ''), { timeout: 20000 });
     expect(await text('#hStatus')).toBe('Draft');
-    expect(await page.$eval('#form', (e) => e.inert)).toBe(false);
+    expect(await page.$$eval('#form > fieldset', (f) => f.some((x) => x.disabled))).toBe(false);
     expect((await doc(id)).revisions.map((r) => [r.label, r.status])).toEqual([['A', 'superseded'], ['B', 'accepted']]);
     await page.close();
   });

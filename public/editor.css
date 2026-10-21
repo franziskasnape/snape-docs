@@ -122,7 +122,7 @@ textarea { resize:vertical; min-height:60px; line-height:1.4; }
 .rev-banner { padding:8px 16px; font-size:13px; background:#e9eff7; color:#2b4a6b; border-bottom:1px solid #cfdbe8; line-height:1.6; }
 .rev-banner.locked { background:#e8f0e4; color:#3d6b34; border-color:#cfe0c8; }
 .rev-banner button { float:right; }
-#form.locked { opacity:.55; }
+#form.locked > fieldset:not(.notes) { opacity:.6; }
 .sent-row { display:grid; grid-template-columns:34px minmax(0,1fr) auto; gap:10px; padding:10px 0; border-bottom:1px solid var(--line); align-items:start; }
 .sent-row .badge { width:30px; height:30px; border-radius:50%; background:#eee8dd; display:flex; align-items:center; justify-content:center; font-weight:700; }
 .sent-row .acts { display:flex; flex-wrap:wrap; gap:6px; justify-content:flex-end; }

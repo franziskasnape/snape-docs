@@ -154,6 +154,7 @@ function renderForm() {
   $('#hLang').textContent = doc.lang.toUpperCase();
   $('#printLink').href = `/documents/${doc.id}/print`;
   $('#htmlLink').href = `/documents/${doc.id}/standalone.html`;
+  applyLock();
 }
 
 // ---- change tracking ----
@@ -421,7 +422,12 @@ function renderStatus() {
   else if (st === 'accepted' && cur) { html = `<b>Revision ${L}</b> was accepted${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''} and is locked. <button type="button" class="mini" data-sact="amend">Create amendment</button>`; locked = true; }
   else if ((st === 'declined' || st === 'withdrawn') && cur) html = `<b>Revision ${L}</b> was ${st}${cur.decidedAt ? ' on ' + fmtDay(cur.decidedAt) : ''}. Changing the offer starts <b>Revision ${revLabelOf(doc.revision + 1)}</b>.`;
   banner.hidden = !html; banner.innerHTML = html; banner.classList.toggle('locked', locked);
-  $('#form').toggleAttribute('inert', locked); $('#form').classList.toggle('locked', locked);
+  applyLock(locked);
+}
+/** A locked (accepted) offer can be read and scrolled but not changed; private notes stay editable (they are never part of the offer). */
+function applyLock(locked = doc.status === 'accepted') {
+  $('#form').classList.toggle('locked', locked);
+  for (const fs of $('#form').querySelectorAll(':scope > fieldset:not(.notes)')) fs.disabled = locked;
 }
 const revLabelOf = (n) => { let s = ''; for (let k = n; k > 0; k = Math.floor((k - 1) / 26)) s = String.fromCharCode(65 + ((k - 1) % 26)) + s; return s; };
 
